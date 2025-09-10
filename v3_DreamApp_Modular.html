@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DreamApp v3 — Modular UI (no API)</title>
+<style>
+  :root{
+    --bg: #0f1220;
+    --panel:#161a2b;
+    --panel-2:#13172a;
+    --muted:#8a91b4;
+    --text:#e9ecff;
+    --accent:#79cfff;
+    --accent-2:#44d4a8;
+    --danger:#ff7c7c;
+    --border:#262b44;
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;background:linear-gradient(180deg,#0c1020 0%, #0f1220 60%, #0b1022 100%);
+    color:var(--text); font:14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol";
+    overflow:hidden;
+  }
+  a{color:var(--accent); text-decoration:none}
+  .app{
+    display:grid; grid-template-columns: 280px 1fr; height:100%;
+  }
+  /* Sidebar */
+  .sidebar{
+    background:linear-gradient(180deg,#121631,#0f1228);
+    border-right:1px solid var(--border);
+    padding:18px 14px 16px; display:flex; flex-direction:column; gap:16px;
+  }
+  .brand{display:flex; align-items:center; gap:10px; font-weight:700; letter-spacing:.2px}
+  .brand .pill{background:rgba(121,207,255,.15); color:var(--accent); border:1px solid rgba(121,207,255,.45); padding:2px 8px; border-radius:999px; font-size:12px}
+  .section-title{margin-top:6px; margin-bottom:4px; color:#a6add2; font-weight:600; font-size:12px; letter-spacing:.4px; text-transform:uppercase}
+  .menu{display:flex; flex-direction:column; gap:8px}
+  .menu button{
+    width:100%; text-align:left; padding:10px 12px; border-radius:10px;
+    background:var(--panel); color:var(--text); border:1px solid var(--border);
+    cursor:pointer;
+  }
+  .menu button.active{outline:2px solid rgba(121,207,255,.35); background:var(--panel-2)}
+  .menu .sub{font-size:12px; color:var(--muted)}
+  .actions{margin-top:auto; display:flex; flex-direction:column; gap:8px}
+  .ghost{background:transparent; border:1px dashed var(--border)}
+  .danger{background:rgba(255,124,124,.08); border-color:rgba(255,124,124,.35); color:#ffd1d1}
+
+  /* Desktop canvas for floating windows */
+  .desk{
+    position:relative; height:100%; overflow:hidden;
+  }
+  /* Floating window */
+  .win{
+    position:absolute; background:var(--panel);
+    border:1px solid var(--border); border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    min-width:280px; min-height:160px; resize: both; overflow:hidden;
+    display:flex; flex-direction:column;
+  }
+  .win.hidden{display:none}
+  .win-header{
+    padding:10px 12px; background:linear-gradient(180deg, #171b2e, #14182b);
+    display:flex; align-items:center; gap:10px; cursor:grab; user-select:none; border-bottom:1px solid var(--border)
+  }
+  .win-header .title{font-weight:600}
+  .win-header .spacer{flex:1}
+  .icon-btn{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:28px; height:28px; border-radius:8px; border:1px solid var(--border);
+    background:var(--panel-2); color:var(--text); cursor:pointer;
+  }
+  .icon-btn:hover{border-color:#3b4368}
+  .win-body{padding:12px; overflow:auto; height:100%}
+
+  textarea, select, input[type="text"]{
+    width:100%; background:#101529; color:var(--text); border:1px solid #262c4b;
+    border-radius:10px; padding:10px 12px; outline:none;
+  }
+  textarea{min-height:120px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace}
+  .row{display:flex; gap:10px; align-items:center}
+  .row.wrap{flex-wrap:wrap}
+  .btn{
+    background:linear-gradient(180deg,#1c2545,#162042);
+    color:var(--text); border:1px solid #2b3358; border-radius:10px; padding:9px 12px; cursor:pointer;
+  }
+  .btn.acc{background:linear-gradient(180deg, rgba(121,207,255,.18), rgba(121,207,255,.08)); border-color:rgba(121,207,255,.45)}
+  .btn.green{background:linear-gradient(180deg, rgba(68,212,168,.20), rgba(68,212,168,.08)); border-color:rgba(68,212,168,.45)}
+  .btn.full{width:100%}
+  .label{font-size:12px; color:#9aa1c7; margin-bottom:6px}
+  .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size:12.5px}
+  .small{font-size:12px; color:var(--muted)}
+  .split{display:grid; grid-template-columns: 1fr 1fr; gap:12px}
+  .copy-tag{font-size:11px; color:#a2a8cf}
+
+  /* Default positions (overridden by saved layout) */
+  /* You’ll set these once, then the app remembers your layout */
+</style>
+</head>
+<body>
+  <div class="app">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div>🎧 DreamApp</div>
+        <div class="pill">v3</div>
+      </div>
+
+      <div class="section-title">Windows</div>
+      <div class="menu">
+        <button data-toggle="#w-framework" class="active">Framework & Dream</button>
+        <button data-toggle="#w-prompt" class="active">Prompt Preview / Copy</button>
+        <button data-toggle="#w-output" class="active">Model Output (paste)</button>
+        <button data-toggle="#w-depth-prompt" class="active">Depth Prompt</button>
+        <button data-toggle="#w-depth-output" class="active">Depth Output</button>
+        <button data-toggle="#w-notes">Notes</button>
+        <div class="sub">Tip: drag window headers, resize via bottom-right corner.</div>
+      </div>
+
+      <div class="section-title">Layout</div>
+      <div class="actions">
+        <button id="saveLayout" class="btn acc full">Save layout</button>
+        <button id="resetLayout" class="btn ghost full">Reset layout</button>
+        <button id="clearAll" class="btn danger full">Clear all text</button>
+      </div>
+
+      <div class="section-title">About</div>
+      <div class="small">
+        Client-only prototype (zero keys, zero backend). Use it to copy prompts into
+        incognito ChatGPT/Claude and paste results back. Layout is saved in your browser.
+      </div>
+    </aside>
+
+    <!-- DESKTOP CANVAS -->
+    <main class="desk" id="desk"></main>
+  </div>
+
+<script>
+/* ---------- helpers ---------- */
+const $ = sel => document.querySelector(sel);
+const el = (tag, attrs={}) => Object.assign(document.createElement(tag), attrs);
+const LS_KEY = "dreamapp_v3_layout";
+
+/* ---------- window factory ---------- */
+function makeWindow(id, title, x, y, w, h, contentHTML){
+  const win = el('section', { className:'win', id });
+  Object.assign(win.style, { left:x+'px', top:y+'px', width:w+'px', height:h+'px' });
+
+  const head = el('div', { className:'win-header' });
+  head.append(el('div', { className:'title', textContent:title }));
+  head.append(el('div', { className:'spacer' }));
+  const closeBtn = el('button', { className:'icon-btn', title:'Hide' }); closeBtn.innerHTML = '✕';
+  head.append(closeBtn);
+  const body = el('div', { className:'win-body' });
+  body.innerHTML = contentHTML;
+  win.append(head, body);
+
+  // z-index focus
+  win.addEventListener('mousedown', () => {
+    document.querySelectorAll('.win').forEach(w => w.style.zIndex = 0);
+    win.style.zIndex = 10;
+  });
+
+  // drag
+  let drag=false, sx=0, sy=0, ox=0, oy=0;
+  head.addEventListener('pointerdown', e => {
+    if (e.target.closest('.icon-btn')) return;
+    drag=true; head.setPointerCapture(e.pointerId);
+    sx=e.clientX; sy=e.clientY;
+    const rect=win.getBoundingClientRect(); ox=rect.left; oy=rect.top;
+    head.style.cursor='grabbing';
+  });
+  head.addEventListener('pointermove', e => {
+    if(!drag) return;
+    const nx = ox + (e.clientX - sx);
+    const ny = oy + (e.clientY - sy);
+    // keep within desk
+    const desk = $('#desk').getBoundingClientRect();
+    const rect = win.getBoundingClientRect();
+    const clampedX = Math.min(Math.max(nx, desk.left), desk.right - rect.width);
+    const clampedY = Math.min(Math.max(ny, desk.top), desk.bottom - 40);
+    Object.assign(win.style, { left: (clampedX - desk.left) + 'px', top: (clampedY - desk.top) + 'px' });
+  });
+  head.addEventListener('pointerup', () => { drag=false; head.releasePointerCapture; head.style.cursor='grab'; });
+
+  // close
+  closeBtn.addEventListener('click', () => {
+    win.classList.add('hidden');
+    // unmark toggle button
+    document.querySelectorAll(`[data-toggle="#${id}"]`).forEach(b=>b.classList.remove('active'));
+  });
+
+  $('#desk').append(win);
+  return win;
+}
+
+/* ---------- content templates ---------- */
+const htmlFramework = `
+  <div class="label">Interpretation framework</div>
+  <select id="frameworkSelect">
+    <option>Jungian (v1)</option>
+    <option>Freudian (v2)</option>
+    <option>Gestalt (v3)</option>
+    <option>Shamanic (v1)</option>
+    <option>Cognitive / Neuropsych (v1)</option>
+  </select>
+  <div class="label" style="margin-top:12px">Dream text</div>
+  <textarea id="dreamText" placeholder="Paste your dream here..."></textarea>
+  <div class="row" style="margin-top:10px">
+    <button id="copyFrameworkPrompt" class="btn acc">Copy framework prompt (Standard)</button>
+    <button id="clearDream" class="btn ghost">Clear</button>
+  </div>
+  <div class="small" style="margin-top:6px">How it works: copy the prompt → run it in incognito ChatGPT/Claude → paste the model output back into the ‘Model Output’ window.</div>
+`;
+
+const htmlPromptPreview = `
+  <div class="small">Auto-preview of the framework prompt you’ll copy.</div>
+  <textarea id="promptPreview" class="mono" style="height:240px" readonly></textarea>
+  <div class="row" style="margin-top:10px">
+    <button id="btnCopyPrompt" class="btn acc">Copy</button>
+  </div>
+  <div class="copy-tag">Copies to your clipboard (if allowed).</div>
+`;
+
+const htmlModelOutput = `
+  <div class="small">Paste the AI’s first pass here (table + interpretation).</div>
+  <textarea id="modelOutput" class="mono" style="height:280px" placeholder="Paste model output here..."></textarea>
+  <div class="row wrap" style="margin-top:10px">
+    <button id="genDepthFromOutput" class="btn green">Generate Depth prompt from output</button>
+    <button id="clearModelOut" class="btn ghost">Clear</button>
+  </div>
+`;
+
+const htmlDepthPrompt = `
+  <div class="small">Depth modes: Plain, Standard, Advanced (Technical). Freud: Plain is sanitized by default.</div>
+  <select id="depthMode" style="margin-top:6px">
+    <option>Plain</option>
+    <option>Standard</option>
+    <option>Advanced (Technical)</option>
+  </select>
+  <textarea id="depthPrompt" class="mono" style="height:210px; margin-top:10px" placeholder="(auto generated from Model Output)..."></textarea>
+  <div class="row" style="margin-top:10px">
+    <button id="btnCopyDepth" class="btn acc">Copy Depth prompt</button>
+    <button id="clearDepth" class="btn ghost">Clear</button>
+  </div>
+`;
+
+const htmlDepthOutput = `
+  <div class="small">Paste the second pass here (rephrased per depth mode).</div>
+  <textarea id="depthOutput" class="mono" style="height:280px" placeholder="Paste depth output here..."></textarea>
+  <div class="row" style="margin-top:10px">
+    <button id="clearDepthOut" class="btn ghost">Clear</button>
+  </div>
+`;
+
+const htmlNotes = `
+  <textarea id="notes" class="mono" style="height:260px" placeholder="Notes, TODOs, observations..."></textarea>
+`;
+
+/* ---------- spawn windows with default positions ---------- */
+const deskRect = () => $('#desk').getBoundingClientRect();
+function defaultLayout(){
+  const d = deskRect();
+  const pad = 20;
+  // left column
+  makeWindow('w-framework','Framework & Dream', pad, pad, 520, 360, htmlFramework);
+  makeWindow('w-prompt','Prompt Preview / Copy', pad, 400, 520, 240, htmlPromptPreview);
+  // right column top/bottom
+  makeWindow('w-output','Model Output (paste here)', d.width - 560 - pad, pad, 560, 300, htmlModelOutput);
+  makeWindow('w-depth-prompt','Depth Prompt', d.width - 560 - pad, 320, 560, 200, htmlDepthPrompt);
+  makeWindow('w-depth-output','Depth Output', d.width - 560 - pad, 540, 560, 200, htmlDepthOutput);
+  makeWindow('w-notes','Notes', pad + 540 + 20, 540, 360, 200, htmlNotes);
+}
+
+/* ---------- layout persistence ---------- */
+function saveLayout(){
+  const data = {};
+  document.querySelectorAll('.win').forEach(w=>{
+    const r = w.getBoundingClientRect();
+    const d = deskRect();
+    data[w.id] = {
+      left: r.left - d.left, top: r.top - d.top, width: r.width, height: r.height,
+      hidden: w.classList.contains('hidden')
+    };
+  });
+  localStorage.setItem(LS_KEY, JSON.stringify(data));
+}
+function loadLayout(){
+  const json = localStorage.getItem(LS_KEY);
+  if(!json) return false;
+  const layout = JSON.parse(json);
+  // create windows first at defaults, then apply
+  defaultLayout();
+  Object.entries(layout).forEach(([id, s])=>{
+    const w = document.getElementById(id);
+    if(!w) return;
+    Object.assign(w.style, { left: s.left+'px', top: s.top+'px', width:s.width+'px', height:s.height+'px' });
+    w.classList.toggle('hidden', !!s.hidden);
+    document.querySelectorAll(`[data-toggle="#${id}"]`).forEach(b=>b.classList.toggle('active', !s.hidden));
+  });
+  return true;
+}
+
+/* ---------- init ---------- */
+defaultLayout(); // initial spawn
+// If a saved layout exists, re-apply it over defaults
+(function(){ try{ loadLayout(); }catch(e){} })();
+
+/* ---------- sidebar toggles ---------- */
+document.querySelectorAll('[data-toggle]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const sel = btn.getAttribute('data-toggle');
+    const w = document.querySelector(sel);
+    if(!w) return;
+    const hidden = w.classList.toggle('hidden');
+    btn.classList.toggle('active', !hidden);
+  });
+});
+
+/* ---------- buttons ---------- */
+$('#saveLayout').addEventListener('click', saveLayout);
+$('#resetLayout').addEventListener('click', ()=>{
+  localStorage.removeItem(LS_KEY);
+  // rebuild desk
+  $('#desk').innerHTML='';
+  defaultLayout();
+});
+$('#clearAll').addEventListener('click', ()=>{
+  ['dreamText','promptPreview','modelOutput','depthPrompt','depthOutput','notes']
+    .forEach(id=>{ const n=$('#'+id); if(n) n.value=''; });
+});
+
+/* ---------- prompt wiring ---------- */
+
+// Simple library of base (Standard) framework prompts.
+function buildFrameworkPrompt(kind, dream){
+  const intro = {
+    'Jungian (v1)': `You are a Jungian dream analyst. Interpret the following dream using core Jungian concepts. Keep the tone educational and exploratory, not therapeutic. Do not include greetings or questions. First, provide a clear **table** mapping each dream element to its Jungian interpretation. Then, write a short section titled **Interpretation** that weaves the elements together into one coherent, easy-to-grasp whole. End with a concluding insight, not a question.`,
+    'Freudian (v2)': `You are a Freudian dream analyst. Interpret the following dream using core Freudian concepts only. Keep the tone educational and exploratory, not therapeutic. Do not include greetings or questions. First, provide a clear **table** mapping each dream element to its Freudian interpretation. Then, write a section titled **Interpretation** that explains the dream as the disguised fulfillment of repressed wishes or conflicts (repression, wish fulfillment, Oedipal dynamics, unconscious desire, sexuality, aggression). Use clear, accessible language. Finally, add **Concluding Insight** summarizing the unconscious conflicts and desires.`,
+    'Gestalt (v3)': `You are a Gestalt dream analyst. Interpret the following dream using core Gestalt concepts. Keep the tone educational and exploratory, not therapeutic. Do not include greetings or questions. First, provide a clear **table** mapping each dream element to its Gestalt interpretation. Then, write a short section titled **Interpretation** that weaves the elements together into one coherent, easy-to-grasp whole. End with a concluding insight, not a question.`,
+    'Shamanic (v1)': `You are a Shamanic dream analyst. Interpret the following dream using core Shamanic concepts. Keep the tone educational and exploratory, not therapeutic. Do not include greetings or questions. First, provide a clear **table** mapping each dream element to its Shamanic interpretation. Then, write a short section titled **Interpretation** that weaves the elements together into one coherent, easy-to-grasp whole. End with a concluding insight, not a question.`,
+    'Cognitive / Neuropsych (v1)': `You are a Cognitive/Neuropsychological dream analyst. Interpret the following dream using core Cognitive/Neuropsychological concepts. Keep the tone educational and exploratory, not therapeutic. Do not include greetings or questions. First, provide a clear **table** mapping each dream element to its Cognitive/Neuropsychological interpretation. Then, write a short section titled **Interpretation** that weaves the elements together into one coherent, easy-to-grasp whole. End with a concluding insight, not a question.`
+  }[kind] || '';
+  return `${intro}\n\nDream: [${dream || ''}]`;
+}
+
+// Depth prompt generator (refines the pasted output)
+function buildDepthPrompt(mode, output, frameworkKind){
+  const base = {
+    'Plain': `Rewrite the following dream interpretation in plain, friendly language for general readers. Keep the structure (table + Interpretation + Concluding Insight) but use short sentences and everyday words. Remove jargon. Keep substance intact.`,
+    'Standard': `Polish the following dream interpretation for clarity and flow. Keep the structure (table + Interpretation + Concluding Insight). Keep the framework’s terminology, but define any uncommon terms briefly in-line. Make it readable and tight.`,
+    'Advanced (Technical)': `Rewrite the following dream interpretation for expert readers. Maintain the structure (table + Interpretation + Concluding Insight). Increase technical precision and cite core constructs and mechanisms for the chosen framework. Avoid over-explaining basics.`
+  }[mode];
+
+  // Freud quirk: Plain = sanitized
+  const addFreud = (mode === 'Plain' && /Freud/i.test(frameworkKind))
+    ? ` IMPORTANT: For a Freudian interpretation, use **sanitized** plain language: avoid explicit sexual phrasing. Prefer neutral terms like "instinctual tension", "potency concerns", "authority conflict".`
+    : '';
+
+  return `${base}${addFreud}\n\n---\n\nSource interpretation:\n${output || ''}`;
+}
+
+/* link controls */
+function syncPromptPreview(){
+  const kind = $('#frameworkSelect').value;
+  const dream = $('#dreamText').value.trim();
+  $('#promptPreview').value = buildFrameworkPrompt(kind, dream);
+}
+// initial wiring once windows exist
+function wireControls(){
+  const fs = $('#frameworkSelect');
+  const dt = $('#dreamText');
+  if(fs) fs.addEventListener('change', syncPromptPreview);
+  if(dt) dt.addEventListener('input', syncPromptPreview);
+  syncPromptPreview();
+
+  const copyBtn = $('#copyFrameworkPrompt');
+  if(copyBtn) copyBtn.addEventListener('click', async ()=>{
+    const txt = $('#promptPreview').value;
+    try{ await navigator.clipboard.writeText(txt);}catch(e){}
+  });
+
+  $('#btnCopyPrompt')?.addEventListener('click', async ()=>{
+    try{ await navigator.clipboard.writeText($('#promptPreview').value);}catch(e){}
+  });
+
+  $('#clearDream')?.addEventListener('click', ()=>{ $('#dreamText').value=''; syncPromptPreview(); });
+
+  $('#clearModelOut')?.addEventListener('click', ()=>{ $('#modelOutput').value=''; });
+  $('#clearDepth')?.addEventListener('click', ()=>{ $('#depthPrompt').value=''; });
+  $('#clearDepthOut')?.addEventListener('click', ()=>{ $('#depthOutput').value=''; });
+
+  $('#genDepthFromOutput')?.addEventListener('click', ()=>{
+    const mode = $('#depthMode').value;
+    const out = $('#modelOutput').value.trim();
+    const kind = $('#frameworkSelect').value;
+    $('#depthPrompt').value = buildDepthPrompt(mode, out, kind);
+  });
+
+  $('#btnCopyDepth')?.addEventListener('click', async ()=>{
+    try{ await navigator.clipboard.writeText($('#depthPrompt').value);}catch(e){}
+  });
+}
+
+// Because we rebuild DOM only on first load/reset, call once:
+wireControls();
+
+</script>
+</body>
+</html>
