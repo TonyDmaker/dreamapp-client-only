@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DreamApp v5 – Modular Desktop (no API)</title>
+<style>
+  :root{
+    --bg:#0f1220; --panel:#161a2b; --muted:#8a91b4; --text:#e9ecff;
+    --accent:#79ccff; --accent-2:#44d4a8; --danger:#ff7c7c; --border:#262b44;
+    --shadow:0 10px 30px rgba(0,0,0,.35); --radius:14px;
+    --sidebar-w: 260px; /* default, user can drag */
+    --sidebar-min: 200px; --sidebar-max: 420px;
+    --gutter: 6px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height:100%; margin:0; background:var(--bg); color:var(--text); font:14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif; }
+
+  /* App shell */
+  .app {
+    display:grid;
+    grid-template-columns: var(--sidebar-w) 1fr;
+    height:100dvh;
+    overflow:hidden; /* sidebar + desktop manage own scroll */
+  }
+
+  /* Sidebar */
+  .sidebar {
+    background:linear-gradient(180deg,#0f1328,#0f1220);
+    border-right:1px solid var(--border);
+    position:relative;
+    overflow:hidden;
+  }
+  .sidebar-inner{
+    height:100%;
+    overflow:auto;
+    padding:16px 12px 18px;
+  }
+  .brand { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .brand .dot{ width:10px; height:10px; border-radius:50%; background:var(--accent-2); box-shadow:0 0 10px var(--accent-2); }
+  .brand h1{ font-size:16px; margin:0; }
+  .tag{ background:#1f2442; color:#9fb0ff; border:1px solid #263058; border-radius:999px; padding:2px 8px; font-size:12px; }
+
+  .menu-section{ margin-top:12px; color:#a4acd1; font-weight:600; font-size:12px; letter-spacing:.3px; text-transform:uppercase; }
+  .menu{ display:flex; flex-direction:column; gap:8px; margin-top:8px; }
+  .menu button{
+    width:100%; text-align:left; background:var(--panel); color:var(--text);
+    border:1px solid var(--border); padding:10px 12px; border-radius:10px;
+    transition:.15s ease; cursor:pointer;
+  }
+  .menu button:hover{ border-color:#33407a; box-shadow:0 4px 16px rgba(0,0,0,.25); transform:translateY(-1px); }
+
+  /* Sidebar top bar */
+  .sidebar-top {
+    display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px;
+  }
+  .ghost-btn{
+    border:1px solid var(--border); background:transparent; color:var(--muted);
+    border-radius:10px; padding:8px 10px; cursor:pointer;
+  }
+  .ghost-btn:hover{ color:var(--text); border-color:#33407a; }
+
+  /* Sidebar resize gutter */
+  .gutter {
+    position:absolute; top:0; right:-3px; width:var(--gutter); height:100%;
+    cursor:col-resize;
+  }
+
+  /* Collapsed sidebar */
+  .sidebar.collapsed { width:0 !important; border-right:none; }
+  .sidebar.collapsed .sidebar-inner{ display:none; }
+  .sidebar.collapsed + .desktop { border-left:1px solid var(--border); }
+
+  /* Desktop (scrollable “app desktop”) */
+  .desktop{
+    position:relative;
+    overflow:auto; /* whole desk scrolls */
+    background:
+      radial-gradient(1200px 600px at 10% -30%, rgba(68,212,168,.06), transparent),
+      radial-gradient(900px 500px at 120% -10%, rgba(121,204,255,.06), transparent),
+      var(--bg);
+  }
+
+  /* Windows */
+  .win{
+    position:absolute;
+    min-width:280px; min-height:160px;
+    background:var(--panel); border:1px solid var(--border); border-radius:14px;
+    box-shadow:var(--shadow);
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  .win-header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 12px; background:rgba(255,255,255,.03);
+    border-bottom:1px solid var(--border); cursor:move; user-select:none;
+  }
+  .win-title{ font-weight:600; color:#cfd6ff; }
+  .win-actions{ display:flex; align-items:center; gap:8px; }
+  .chip{ font-size:12px; color:#a2b2ff; background:#1f2442; border:1px solid #2b3666; padding:2px 8px; border-radius:999px; }
+  .x-btn{ width:26px; height:26px; border-radius:8px; border:1px solid var(--border); background:#1e223a; color:#ff9aa2; cursor:pointer; }
+  .x-btn:hover{ border-color:#3a2a2a; background:#2a1f24; color:#ffbfc5; }
+  .win-body{ padding:12px; overflow:auto; flex:1; }
+  .win-body textarea, .win-body pre{
+    width:100%; min-height:120px; background:#0f1220; color:var(--text);
+    border:1px solid #20284a; border-radius:10px; padding:10px; resize:none;
+  }
+  .row{ display:flex; gap:10px; flex-wrap:wrap; }
+  .btn{
+    background:#1f2747; color:#dfe6ff; border:1px solid #2a3563; border-radius:10px;
+    padding:8px 12px; cursor:pointer; transition:.15s ease;
+  }
+  .btn:hover{ border-color:#3b4a89; transform:translateY(-1px); }
+
+  /* Resize handles (all four sides + corners) */
+  .handle{ position:absolute; }
+  .handle.n { top:-3px; left:8px; right:8px; height:6px; cursor:n-resize; }
+  .handle.s { bottom:-3px; left:8px; right:8px; height:6px; cursor:s-resize; }
+  .handle.w { left:-3px; top:8px; bottom:8px; width:6px; cursor:w-resize; }
+  .handle.e { right:-3px; top:8px; bottom:8px; width:6px; cursor:e-resize; }
+  .handle.nw { left:-3px; top:-3px; width:10px; height:10px; cursor:nw-resize; }
+  .handle.ne { right:-3px; top:-3px; width:10px; height:10px; cursor:ne-resize; }
+  .handle.sw { left:-3px; bottom:-3px; width:10px; height:10px; cursor:sw-resize; }
+  .handle.se { right:-3px; bottom:-3px; width:10px; height:10px; cursor:se-resize; }
+
+  /* Scrollbars: subtle until hover */
+  .desktop, .win-body{
+    scrollbar-width:thin;
+    scrollbar-color: rgba(255,255,255,.2) transparent;
+  }
+  /* Chrome/Edge */
+  .desktop::-webkit-scrollbar,
+  .win-body::-webkit-scrollbar{ width:12px; height:12px; }
+  .desktop::-webkit-scrollbar-thumb,
+  .win-body::-webkit-scrollbar-thumb{
+    background:rgba(255,255,255,.18); border-radius:999px; border:3px solid transparent; background-clip:content-box;
+    transition:background .15s ease;
+  }
+  .desktop:hover::-webkit-scrollbar-thumb,
+  .win-body:hover::-webkit-scrollbar-thumb{
+    background:rgba(255,255,255,.38);
+  }
+
+  /* Helpers */
+  .hidden{ display:none !important; }
+  .muted{ color:var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside id="sidebar" class="sidebar" style="width:var(--sidebar-w);">
+    <div class="sidebar-top">
+      <div class="brand">
+        <span class="dot"></span>
+        <h1>DreamApp <span class="tag">v5</span></h1>
+      </div>
+      <button id="toggleSidebar" class="ghost-btn" title="Collapse sidebar">⟨⟨</button>
+    </div>
+
+    <div class="sidebar-inner">
+      <div class="menu-section">Windows</div>
+      <div class="menu">
+        <button data-open="win-framework">Framework & Dream</button>
+        <button data-open="win-prompt">Prompt Preview / Copy</button>
+        <button data-open="win-depth">Depth Prompt</button>
+        <button data-open="win-output">Model Output (paste)</button>
+        <button data-open="win-depthout">Depth Output</button>
+        <button data-open="win-notes">Notes</button>
+      </div>
+
+      <p class="menu-section" style="margin-top:16px;">Tip</p>
+      <p class="muted">Drag a window by its header. Resize from any edge or corner. Close with “X”.</p>
+    </div>
+    <div id="gutter" class="gutter" title="Drag to resize sidebar"></div>
+  </aside>
+
+  <!-- DESKTOP -->
+  <main id="desktop" class="desktop">
+    <!-- Framework & Dream -->
+    <section id="win-framework" class="win" style="left:22px; top:18px; width:580px; height:320px;">
+      <div class="win-header" data-drag>
+        <div class="win-title">Framework &amp; Dream</div>
+        <div class="win-actions">
+          <span class="chip">Shamanic (v1)</span>
+          <button class="x-btn" data-close>&times;</button>
+        </div>
+      </div>
+      <div class="win-body">
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+          <select id="framework" class="btn">
+            <option>Jungian (v4)</option>
+            <option>Freudian (v2)</option>
+            <option>Gestalt (v3)</option>
+            <option>Shamanic (v1)</option>
+            <option>Cognitive / Neuropsych (v1)</option>
+          </select>
+          <button id="copyFrameworkPrompt" class="btn">Copy framework prompt (Standard)</button>
+          <button id="clearDream" class="btn" title="Clear">Clear</button>
+        </div>
+        <textarea id="dreamText" placeholder="Paste your dream here..."></textarea>
+      </div>
+      <!-- handles -->
+      <div class="handle n"></div><div class="handle s"></div><div class="handle w"></div><div class="handle e"></div>
+      <div class="handle nw"></div><div class="handle ne"></div><div class="handle sw"></div><div class="handle se"></div>
+    </section>
+
+    <!-- Prompt Preview / Copy -->
+    <section id="win-prompt" class="win" style="left:22px; top:360px; width:580px; height:230px;">
+      <div class="win-header" data-drag>
+        <div class="win-title">Prompt Preview / Copy</div>
+        <div class="win-actions">
+          <button class="x-btn" data-close>&times;</button>
+        </div>
+      </div>
+      <div class="win-body">
+        <textarea id="promptPreview" placeholder="Generated framework prompt appears here (read-only)"></textarea>
+        <div style="margin-top:8px;">
+          <button id="copyPreview" class="btn">Copy</button>
+        </div>
+      </div>
+      <div class="handle n"></div><div class="handle s"></div><div class="handle w"></div><div class="handle e"></div>
+      <div class="handle nw"></div><div class="handle ne"></div><div class="handle sw"></div><div class="handle se"></div>
+    </section>
+
+    <!-- Depth Prompt -->
+    <section id="win-depth" class="win" style="left:622px; top:18px; width:520px; height:220px;">
+      <div class="win-header" data-drag>
+        <div class="win-title">Depth Prompt</div>
+        <div class="win-actions">
+          <span class="chip">Plain / Standard / Advanced</span>
+          <button class="x-btn" data-close>&times;</button>
+        </div>
+      </div>
+      <div class="win-body">
+        <textarea id="depthPrompt" placeholder="Click a depth button in Output window to generate a second-pass prompt here..."></textarea>
+        <div style="margin-top:8px;">
+          <button id="copyDepth" class="btn">Copy Depth prompt</button>
+        </div>
+      </div>
+      <div class="handle n"></div><div class="handle s"></div><div class="handle w"></div><div class="handle e"></div>
+      <div class="handle nw"></div><div class="handle ne"></div><div class="handle sw"></div><div class="handle se"></div>
+    </section>
+
+    <!-- Model Output -->
+    <section id="win-output" class="win" style="left:622px; top:248px; width:520px; height:260px;">
+      <div class="win-header" data-drag>
+        <div class="win-title">Model Output (paste here)</div>
+        <div class="win-actions">
+          <button class="x-btn" data-close>&times;</button>
+        </div>
+      </div>
+      <div class="win-body">
+        <textarea id="modelOutput" placeholder="Paste the model's first output here..."></textarea>
+        <div class="row" style="margin-top:8px;">
+          <button class="btn" data-depth="plain">Generate Depth: Plain</button>
+          <button class="btn" data-depth="standard">Generate Depth: Standard</button>
+          <button class="btn" data-depth="advanced">Generate Depth: Advanced</button>
+        </div>
+      </div>
+      <div class="handle n"></div><div class="handle s"></div><div class="handle w"></div><div class="handle e"></div>
+      <div class="handle nw"></div><div class="handle ne"></div><div class="handle sw"></div><div class="handle se"></div>
+    </section>
+
+    <!-- Depth Output -->
+    <section id="win-depthout" class="win" style="left:622px; top:520px; width:520px; height:220px;">
+      <div class="win-header" data-drag>
+        <div class="win-title">Depth Output</div>
+        <div class="win-actions">
+          <button class="x-btn" data-close>&times;</button>
+        </div>
+      </div>
+      <div class="win-body">
+        <textarea id="depthOutput" placeholder="Paste the second-pass (depth) output here..."></textarea>
+      </div>
+      <div class="handle n"></div><div class="handle s"></div><div class="handle w"></div><div class="handle e"></div>
+      <div class="handle nw"></div><div class="handle ne"></div><div class="handle sw"></div><div class="handle se"></div>
+    </section>
+
+    <!-- Notes -->
+    <section id="win-notes" class="win" style="left:22px; top:610px; width:580px; height:200px;">
+      <div class="win-header" data-drag>
+        <div class="win-title">Notes</div>
+        <div class="win-actions">
+          <button class="x-btn" data-close>&times;</button>
+        </div>
+      </div>
+      <div class="win-body">
+        <textarea id="notes" placeholder="Scratchpad..."></textarea>
+      </div>
+      <div class="handle n"></div><div class="handle s"></div><div class="handle w"></div><div class="handle e"></div>
+      <div class="handle nw"></div><div class="handle ne"></div><div class="handle sw"></div><div class="handle se"></div>
+    </section>
+  </main>
+</div>
+
+<script>
+/* ---------- Sidebar collapse + drag resize ---------- */
+const sidebar = document.getElementById('sidebar');
+const gutter = document.getElementById('gutter');
+const toggleSidebarBtn = document.getElementById('toggleSidebar');
+let sidebarCollapsed = false;
+
+toggleSidebarBtn.addEventListener('click', ()=>{
+  sidebarCollapsed = !sidebarCollapsed;
+  sidebar.classList.toggle('collapsed', sidebarCollapsed);
+  toggleSidebarBtn.textContent = sidebarCollapsed ? '⟩⟩' : '⟨⟨';
+});
+
+let draggingGutter = false;
+gutter.addEventListener('pointerdown', (e)=>{
+  if (sidebarCollapsed) return;
+  draggingGutter = true; gutter.setPointerCapture(e.pointerId);
+});
+window.addEventListener('pointermove', (e)=>{
+  if (!draggingGutter) return;
+  const min = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-min'));
+  const max = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-max'));
+  let newW = Math.min(max, Math.max(min, e.clientX));
+  sidebar.style.width = newW + 'px';
+});
+window.addEventListener('pointerup', ()=> draggingGutter=false);
+
+/* ---------- Menu behavior: open/focus only (no toggle off) ---------- */
+document.querySelectorAll('.menu [data-open]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const id = btn.getAttribute('data-open');
+    const win = document.getElementById(id);
+    if (!win) return;
+    win.classList.remove('hidden');
+    focusWindow(win);
+    // scroll into view on desktop
+    win.scrollIntoView({behavior:'smooth', block:'center', inline:'center'});
+  });
+});
+
+/* ---------- Window drag & z-index ---------- */
+let zTop = 10;
+function focusWindow(el){ el.style.zIndex = ++zTop; }
+document.querySelectorAll('.win').forEach(w=>{
+  w.addEventListener('pointerdown', ()=>focusWindow(w));
+  const header = w.querySelector('[data-drag]');
+  let ox=0, oy=0, dragging=false;
+  header.addEventListener('pointerdown', (e)=>{
+    dragging = true; header.setPointerCapture(e.pointerId);
+    const r = w.getBoundingClientRect(); ox = e.clientX - r.left; oy = e.clientY - r.top;
+    focusWindow(w);
+  });
+  header.addEventListener('pointermove', (e)=>{
+    if (!dragging) return;
+    const deskRect = document.getElementById('desktop').getBoundingClientRect();
+    let x = e.clientX - ox - deskRect.left;
+    let y = e.clientY - oy - deskRect.top;
+    w.style.left = Math.max(4, x) + 'px';
+    w.style.top  = Math.max(4, y) + 'px';
+  });
+  header.addEventListener('pointerup', ()=> dragging=false);
+
+  // close X
+  w.querySelectorAll('[data-close]').forEach(x=>{
+    x.addEventListener('click', ()=> w.classList.add('hidden'));
+  });
+});
+
+/* ---------- Resize on all sides ---------- */
+document.querySelectorAll('.win').forEach(w=>{
+  let resizing=false, mode=null, start={}, startRect={};
+  w.querySelectorAll('.handle').forEach(h=>{
+    h.addEventListener('pointerdown', (e)=>{
+      resizing=true; h.setPointerCapture(e.pointerId);
+      mode = Array.from(h.classList).find(c=>['n','s','e','w','nw','ne','sw','se'].includes(c));
+      start = { x:e.clientX, y:e.clientY };
+      const r = w.getBoundingClientRect();
+      const desk = document.getElementById('desktop').getBoundingClientRect();
+      startRect = { left:r.left-desk.left, top:r.top-desk.top, width:r.width, height:r.height };
+      focusWindow(w);
+    });
+    h.addEventListener('pointermove', (e)=>{
+      if(!resizing) return;
+      const dx = e.clientX - start.x;
+      const dy = e.clientY - start.y;
+      let {left, top, width, height} = startRect;
+
+      const has = s => mode.includes(s);
+      if (has('e')) width = Math.max(240, startRect.width + dx);
+      if (has('s')) height = Math.max(140, startRect.height + dy);
+      if (has('w')) { width = Math.max(240, startRect.width - dx); left = startRect.left + dx; }
+      if (has('n')) { height = Math.max(140, startRect.height - dy); top  = startRect.top + dy; }
+
+      w.style.left = left+'px'; w.style.top = top+'px';
+      w.style.width = width+'px'; w.style.height = height+'px';
+    });
+    h.addEventListener('pointerup', ()=>{ resizing=false; mode=null; });
+  });
+});
+
+/* ---------- Framework prompt generation (placeholder logic) ---------- */
+const fwSelect = document.getElementById('framework');
+const dreamText = document.getElementById('dreamText');
+const promptPreview = document.getElementById('promptPreview');
+
+function buildFrameworkPrompt(){
+  const fw = fwSelect.value;
+  const base = {
+    "Jungian (v4)":
+`You are a Jungian dream analyst. Interpret the following dream using core Jungian concepts.
+Keep the tone educational and exploratory, not therapeutic.
+Do not include greetings or questions.
+First, provide a clear table mapping each dream element to its Jungian interpretation.
+Then, write a short section titled Interpretation that weaves the elements together into one coherent, easy-to-grasp whole.
+End with a concluding insight, not a question.
+
+Dream: [${dreamText.value.trim() || 'Insert dream here'}]`,
+    "Freudian (v2)":
+`You are a Freudian dream analyst. Interpret the following dream using core Freudian concepts only.
+Keep the tone educational and exploratory, not therapeutic.
+Do not include greetings or questions.
+First, provide a clear table mapping each dream element to its Freudian interpretation.
+Then, write a section titled Interpretation that explains the dream as the disguised fulfillment of repressed wishes or conflicts (repression, wish fulfillment, Oedipal dynamics, sexuality, aggression).
+Use clear and concise language.
+Finally, add a short section titled Concluding Insight.
+
+Dream: [${dreamText.value.trim() || 'Insert dream here'}]`,
+    "Gestalt (v3)":
+`You are a Gestalt dream analyst. Interpret the following dream using core Gestalt concepts.
+Keep the tone educational and exploratory, not therapeutic.
+Do not include greetings or questions.
+First, provide a clear table mapping each dream element to its Gestalt interpretation.
+Then, write a short section titled Interpretation that weaves the elements together into one coherent, easy-to-grasp whole.
+End with a concluding insight, not a question.
+
+Dream: [${dreamText.value.trim() || 'Insert dream here'}]`,
+    "Shamanic (v1)":
+`You are a Shamanic dream analyst. Interpret the following dream using core Shamanic concepts.
+Keep the tone educational and exploratory, not therapeutic. Do not include greetings or questions.
+First, provide a clear table mapping each dream element to its Shamanic interpretation.
+Then, write a short section titled Interpretation that weaves the elements together into one coherent, easy-to-grasp whole.
+End with a concluding insight, not a question.
+
+Dream: [${dreamText.value.trim() || 'Insert dream here'}]`,
+    "Cognitive / Neuropsych (v1)":
+`You are a Cognitive/Neuropsychological dream analyst. Interpret the following dream using core cognitive/neuropsych concepts.
+Keep the tone educational and exploratory, not therapeutic. Do not include greetings or questions.
+First, provide a clear table mapping each dream element to its Cognitive/Neuropsychological interpretation.
+Then, write a short section titled Interpretation that weaves the elements together into one coherent, easy-to-grasp whole.
+End with a concluding insight, not a question.
+
+Dream: [${dreamText.value.trim() || 'Insert dream here'}]`,
+  };
+  return base[fw] || '';
+}
+
+document.getElementById('copyFrameworkPrompt').addEventListener('click', ()=>{
+  promptPreview.value = buildFrameworkPrompt();
+  navigator.clipboard?.writeText(promptPreview.value).catch(()=>{});
+});
+
+document.getElementById('copyPreview').addEventListener('click', ()=>{
+  if (!promptPreview.value) promptPreview.value = buildFrameworkPrompt();
+  navigator.clipboard?.writeText(promptPreview.value).catch(()=>{});
+});
+document.getElementById('clearDream').addEventListener('click', ()=> dreamText.value='');
+
+/* ---------- Depth prompt generator ---------- */
+const modelOutputEl = document.getElementById('modelOutput');
+const depthPromptEl = document.getElementById('depthPrompt');
+const depthOutputEl = document.getElementById('depthOutput');
+
+const depthTemplates = {
+  plain:`Rewrite the following interpretation in clear, everyday language for a general audience. Preserve the structure (table, Interpretation, Concluding Insight) but simplify jargon and shorten sentences. Do not add greetings or questions.
+
+TEXT:
+[PASTE MODEL OUTPUT HERE]`,
+  standard:`Refine the following interpretation for clarity and flow while keeping its original structure and depth level. Improve transitions, reduce redundancy, and ensure terms are explained briefly if needed. Do not add greetings or questions.
+
+TEXT:
+[PASTE MODEL OUTPUT HERE]`,
+  advanced:`Translate the following interpretation into a more technical, theory-aligned register that would satisfy an expert reader of this framework. Retain the structure, add precise terminology judiciously, and keep it concise and rigorous. Do not add greetings or questions.
+
+TEXT:
+[PASTE MODEL OUTPUT HERE]`
+};
+
+document.querySelectorAll('[data-depth]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const kind = btn.getAttribute('data-depth');
+    const base = depthTemplates[kind];
+    const content = (modelOutputEl.value || '').trim() || '[PASTE MODEL OUTPUT HERE]';
+    depthPromptEl.value = base.replace('[PASTE MODEL OUTPUT HERE]', content);
+    focusWindow(document.getElementById('win-depth'));
+  });
+});
+
+document.getElementById('copyDepth').addEventListener('click', ()=>{
+  if (depthPromptEl.value) navigator.clipboard?.writeText(depthPromptEl.value).catch(()=>{});
+});
+
+/* Quality-of-life: focus windows when their textareas get focus */
+[['win-prompt','#promptPreview'],['win-framework','#dreamText'],['win-depth','#depthPrompt'],['win-output','#modelOutput'],['win-depthout','#depthOutput'],['win-notes','#notes']]
+.forEach(([id, sel])=>{
+  const t = document.querySelector(sel);
+  if (!t) return;
+  t.addEventListener('focus', ()=> focusWindow(document.getElementById(id)));
+});
+</script>
+</body>
+</html>
