@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DreamApp v3 – Manual Flow (no API)</title>
+  <style>
+    :root{
+      --bg:#0f1220; --panel:#161a2b; --muted:#8a91b4; --text:#e9ecff;
+      --accent:#79cffc; --accent-2:#44d4a8; --shadow:0 10px 30px rgba(0,0,0,.35);
+      --radius:14px; --border:#262d44; --danger:#ff7c7c; --gap:14px;
+      --card-pad:16px 18px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; color:var(--text); background:linear-gradient(180deg,#0c0f1b,#0f1220 40%,#0f1220);
+      font:500 15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial;
+    }
+    .wrap{max-width:1200px; margin:24px auto; padding:0 16px}
+    header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+    h1{font-size:18px;margin:0}
+    .sub{color:var(--muted);font-size:13px}
+    .grid{
+      display:grid; gap:var(--gap);
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto 1fr 1fr;
+      grid-template-areas:
+        "leftTop  rightTop"
+        "leftMid  rightMid"
+        "leftBot  rightBot";
+    }
+    .card{
+      background:linear-gradient(180deg,#13182a,#141a30);
+      border:1px solid var(--border);
+      border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden;
+      display:flex; flex-direction:column; min-height:220px;
+    }
+    .card h2{margin:0; padding:14px 16px; font-size:14px; letter-spacing:.2px; border-bottom:1px solid var(--border); background:#11162a}
+    .body{padding:var(--card-pad); gap:12px; display:flex; flex-direction:column; height:100%}
+    textarea{
+      width:100%; height:220px; resize:vertical; border-radius:10px; border:1px solid var(--border);
+      background:#0f1426; color:var(--text); padding:12px; font:500 14px/1.5 ui-monospace,SFMono-Regular,Consolas,Menlo,monospace;
+      outline:none;
+    }
+    .row{display:flex; gap:10px; flex-wrap:wrap}
+    select,button{
+      background:#101734; color:var(--text); border:1px solid var(--border);
+      padding:10px 12px; border-radius:10px; cursor:pointer; font-weight:600;
+    }
+    button.primary{background:linear-gradient(90deg,#49b8ff,#7fe2ff); color:#06101a; border:0}
+    button.ghost{background:transparent}
+    .muted{color:var(--muted); font-size:12px}
+    .mono{font-family:ui-monospace,SFMono-Regular,Consolas,Menlo,monospace; font-size:13px}
+    /* areas */
+    .leftTop  {grid-area:leftTop}
+    .rightTop {grid-area:rightTop}
+    .leftMid  {grid-area:leftMid}
+    .rightMid {grid-area:rightMid}
+    .leftBot  {grid-area:leftBot}
+    .rightBot {grid-area:rightBot}
+    /* small */
+    @media (max-width:1000px){
+      .grid{
+        grid-template-columns:1fr;
+        grid-template-rows:auto auto auto auto auto auto;
+        grid-template-areas:
+          "leftTop"
+          "leftMid"
+          "rightTop"
+          "rightMid"
+          "leftBot"
+          "rightBot";
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>DreamApp – Client-Only Prototype (v3)</h1>
+        <div class="sub">Zero-key, copy/paste flow. Framework prompt now embedded in the left panel. Depth Output has its own left-bottom window.</div>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- LEFT TOP: Framework & Dream (includes Prompt Preview + Copy) -->
+      <section class="card leftTop">
+        <h2>Framework & Dream</h2>
+        <div class="body">
+          <div class="row">
+            <label class="muted">Interpretation framework:</label>
+            <select id="frameworkSelect" title="Choose one">
+              <option value="Jungian">Jungian (v1)</option>
+              <option value="Freudian">Freud (v2)</option>
+              <option value="Gestalt">Gestalt (v3)</option>
+              <option value="Shamanic">Shamanic (v1)</option>
+              <option value="Cognitive">Cognitive/Neuropsych (v1)</option>
+            </select>
+            <button id="btnCopyFrameworkPrompt" class="primary">Copy framework prompt (Standard)</button>
+          </div>
+
+          <label class="muted">Dream text</label>
+          <textarea id="dreamInput" placeholder="Paste your dream here…"></textarea>
+
+          <label class="muted">Framework prompt (preview)</label>
+          <textarea id="frameworkPromptPreview" class="mono" readonly></textarea>
+        </div>
+      </section>
+
+      <!-- RIGHT TOP: Model Output (paste) -->
+      <section class="card rightTop">
+        <h2>Model Output (paste here)</h2>
+        <div class="body">
+          <textarea id="modelOutput" placeholder="Paste the interpretation you get from incognito ChatGPT/Claude here…"></textarea>
+          <div class="row">
+            <button id="btnGenDepthPlain">Generate Depth: Plain</button>
+            <button id="btnGenDepthStandard">Generate Depth: Standard</button>
+            <button id="btnGenDepthAdvanced">Generate Depth: Advanced (Technical)</button>
+          </div>
+          <div class="muted">These buttons create a second-pass “depth” prompt using the content you pasted above.</div>
+        </div>
+      </section>
+
+      <!-- LEFT MIDDLE: Depth Output (FINAL) -->
+      <section class="card leftMid">
+        <h2>Depth Output (paste result here)</h2>
+        <div class="body">
+          <textarea id="depthOutput" placeholder="Run the depth prompt in your model, then paste the result here for side-by-side comparison…"></textarea>
+        </div>
+      </section>
+
+      <!-- RIGHT MIDDLE: Depth Output (Prompt to copy) -->
+      <section class="card rightMid">
+        <h2>Depth Output – Prompt (copy)</h2>
+        <div class="body">
+          <textarea id="depthPrompt" class="mono" readonly></textarea>
+          <div class="row">
+            <button id="btnCopyDepthPrompt" class="primary">Copy depth prompt</button>
+            <button id="btnClear" class="ghost">Clear all</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- LEFT BOTTOM: (Reserved) Depth Notes / Comparison (empty for now) -->
+      <section class="card leftBot">
+        <h2>Depth Notes / Comparison (placeholder)</h2>
+        <div class="body">
+          <textarea id="notesArea" placeholder="(Optional) jot notes comparing Model Output vs Depth Output…"></textarea>
+        </div>
+      </section>
+
+      <!-- RIGHT BOTTOM: Helper (optional) -->
+      <section class="card rightBot">
+        <h2>Helper: Tiny instructions</h2>
+        <div class="body">
+          <ol class="muted">
+            <li>Pick a framework & paste your dream.</li>
+            <li>Click <b>Copy framework prompt</b> → run it in incognito ChatGPT/Claude.</li>
+            <li>Paste the interpretation into <b>Model Output</b> (right-top).</li>
+            <li>Click a <b>Generate Depth</b> button → copy depth prompt (right-middle).</li>
+            <li>Run depth prompt in your model → paste result into <b>Depth Output</b> (left-middle).</li>
+          </ol>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    // --- Framework prompts (Standard only for the left panel, per your v3 rule) ---
+    const PROMPTS = {
+      Jungian: `You are a Jungian dream analyst. Interpret the following dream using core Jungian concepts.
+Keep the tone educational and exploratory, not therapeutic.
+Do not include greetings or questions.
+First, provide a clear table mapping each dream element to its Jungian interpretation.
+Then, write a short section titled Interpretation that weaves the elements together into one coherent, easy-to-grasp whole.
+End with a concluding insight, not a question.
+
+Dream: [<PASTE DREAM HERE>]`,
+      Freudian: `You are a Freudian dream analyst. Interpret the following dream using core Freudian concepts only.
+Keep the tone educational and exploratory, not therapeutic.
+Do not include greetings or questions.
+First, provide a clear table mapping each dream element to its Freudian interpretation.
+Then, write a section titled Interpretation that explains the dream as the disguised fulfillment of repressed wishes or conflicts (e.g., repression, wish fulfillment, Oedipal dynamics, unconscious desire, sexuality, aggression).
+Finally, add a short section titled Concluding Insight.
+
+Dream: [<PASTE DREAM HERE>]`,
+      Gestalt: `You are a Gestalt dream analyst. Interpret the following dream using core Gestalt concepts.
+Keep the tone educational and exploratory, not therapeutic.
+Do not include greetings or questions.
+First, provide a clear table mapping each dream element to its Gestalt interpretation.
+Then, write a short section titled Interpretation that weaves the elements together into one coherent, easy-to-grasp whole.
+End with a concluding insight, not a question.
+
+Dream: [<PASTE DREAM HERE>]`,
+      Shamanic: `You are a Shamanic dream analyst. Interpret the following dream using core Shamanic concepts.
+Keep the tone educational and exploratory, not therapeutic.
+Do not include greetings or questions.
+First, provide a clear table mapping each dream element to its Shamanic interpretation.
+Then, write a short section titled Interpretation that weaves the elements together into one coherent, easy-to-grasp whole.
+End with a concluding insight, not a question.
+
+Dream: [<PASTE DREAM HERE>]`,
+      Cognitive: `You are a Cognitive/Neuropsychological dream analyst. Interpret the following dream using core Cognitive/Neuropsychological concepts.
+Keep the tone educational and exploratory, not therapeutic.
+Do not include greetings or questions.
+First, provide a clear table mapping each dream element to its Cognitive/Neuropsychological interpretation.
+Then, write a short section titled Interpretation that weaves the elements together into one coherent, easy-to-grasp whole.
+End with a concluding insight, not a question.
+
+Dream: [<PASTE DREAM HERE>]`,
+    };
+
+    const el = {
+      framework: document.getElementById('frameworkSelect'),
+      dream: document.getElementById('dreamInput'),
+      frameworkPreview: document.getElementById('frameworkPromptPreview'),
+      btnCopyFramework: document.getElementById('btnCopyFrameworkPrompt'),
+
+      modelOutput: document.getElementById('modelOutput'),
+      btnDepthPlain: document.getElementById('btnGenDepthPlain'),
+      btnDepthStandard: document.getElementById('btnGenDepthStandard'),
+      btnDepthAdvanced: document.getElementById('btnGenDepthAdvanced'),
+
+      depthPrompt: document.getElementById('depthPrompt'),
+      depthOutput: document.getElementById('depthOutput'),
+      btnCopyDepth: document.getElementById('btnCopyDepthPrompt'),
+
+      notes: document.getElementById('notesArea'),
+      btnClear: document.getElementById('btnClear')
+    };
+
+    // Build framework prompt preview
+    function buildFrameworkPrompt() {
+      const base = PROMPTS[el.framework.value] || '';
+      const d = el.dream.value.trim() || '<PASTE DREAM HERE>';
+      el.frameworkPreview.value = base.replace('[<PASTE DREAM HERE>]', d);
+    }
+    el.framework.addEventListener('change', buildFrameworkPrompt);
+    el.dream.addEventListener('input', buildFrameworkPrompt);
+    buildFrameworkPrompt();
+
+    // Copy framework prompt
+    el.btnCopyFramework.addEventListener('click', async () => {
+      await navigator.clipboard.writeText(el.frameworkPreview.value);
+      flash(el.btnCopyFramework, 'Copied!');
+    });
+
+    // Depth prompt templates
+    const DEPTH = {
+      Plain: `Rewrite the following dream interpretation in plain, everyday language for a general audience. Keep the structure (table → Interpretation → Concluding Insight) if present. Avoid jargon. Keep it concise but warm.
+
+Interpretation to simplify:
+<<<
+{{MODEL_OUTPUT}}
+>>>`,
+      Standard: `Refine the following dream interpretation for clarity and flow. Keep the structure (table → Interpretation → Concluding Insight). Preserve the original framework's voice. Improve readability without losing meaning.
+
+Interpretation to refine:
+<<<
+{{MODEL_OUTPUT}}
+>>>`,
+      Advanced: `Translate the following dream interpretation into a technically detailed version for an expert audience. Expand key concepts and justify claims with the framework's terminology. Keep the structure (table → Interpretation → Concluding Insight).
+
+Interpretation to deepen:
+<<<
+{{MODEL_OUTPUT}}
+>>>`
+    };
+
+    function makeDepth(kind){
+      const src = el.modelOutput.value.trim();
+      if(!src){ el.depthPrompt.value = 'Paste a Model Output first.'; return; }
+      el.depthPrompt.value = DEPTH[kind].replace('{{MODEL_OUTPUT}}', src);
+    }
+    el.btnDepthPlain.addEventListener('click', () => makeDepth('Plain'));
+    el.btnDepthStandard.addEventListener('click', () => makeDepth('Standard'));
+    el.btnDepthAdvanced.addEventListener('click', () => makeDepth('Advanced'));
+
+    // Copy depth prompt
+    el.btnCopyDepth.addEventListener('click', async () => {
+      await navigator.clipboard.writeText(el.depthPrompt.value);
+      flash(el.btnCopyDepth, 'Copied!');
+    });
+
+    // Clear all
+    el.btnClear.addEventListener('click', () => {
+      el.dream.value = '';
+      el.modelOutput.value = '';
+      el.depthPrompt.value = '';
+      el.depthOutput.value = '';
+      el.notes.value = '';
+      buildFrameworkPrompt();
+    });
+
+    // tiny feedback pulse
+    function flash(button, text){
+      const prev = button.textContent;
+      button.textContent = text;
+      setTimeout(()=>button.textContent = prev, 900);
+    }
+  </script>
+</body>
+</html>
