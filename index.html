@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>DreamApp – Client-Only Prototype</title>
+  <style>
+    :root { --bg:#0b1020; --panel:#121836; --muted:#9aa4c7; --text:#e8ecff; --accent:#6ea8ff; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: ui-sans-serif, system-ui, Segoe UI, Roboto, Helvetica, Arial; background:linear-gradient(180deg,#0a0f1d 0%,#0f1733 100%); color:var(--text);}
+    header { padding:20px 24px; border-bottom:1px solid #1c2550; position:sticky; top:0; backdrop-filter: blur(6px); background:rgba(10,14,28,.7);}
+    header h1 { margin:0; font-size:18px; letter-spacing:.4px; }
+    main { max-width:980px; margin:24px auto 64px; padding:0 16px; }
+    .grid { display:grid; gap:16px; grid-template-columns: 1fr; }
+    @media (min-width: 980px){ .grid{ grid-template-columns: 1fr 1fr; } }
+    .card { background:var(--panel); border:1px solid #1c2550; border-radius:14px; padding:16px; box-shadow:0 8px 24px rgba(0,0,0,.25); }
+    label { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.12em; }
+    textarea, select, input[type="text"]{ width:100%; margin-top:8px; background:#0e1530; color:var(--text); border:1px solid #23306a; border-radius:10px; padding:12px; outline:none; }
+    textarea{ min-height:160px; resize:vertical; }
+    .row{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    button{ background:#1b2656; color:var(--text); border:1px solid #2a3c86; padding:10px 12px; border-radius:10px; cursor:pointer; }
+    button:hover{ background:#22306a; }
+    .accent{ background:#1e3a8a; border-color:#3556b8; }
+    .accent:hover{ background:#25449b; }
+    .pill{ font-size:12px; color:var(--muted); }
+    .small{ font-size:12px; color:var(--muted); line-height:1.5; }
+    .footer-note{ margin-top:8px; font-size:12px; color:#7f8bb7; }
+    .out-box{ min-height:180px; white-space:pre-wrap; }
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>DreamApp – Client-Only Prototype (Copy ➜ Incognito GPT ➜ Paste)</h1>
+  </header>
+
+  <main class="grid">
+    <!-- Dream Input -->
+    <section class="card">
+      <label>Dream Text</label>
+      <textarea id="dream" placeholder="Paste your dream here..."></textarea>
+
+      <div class="row">
+        <div style="flex:1">
+          <label>Framework</label>
+          <select id="framework">
+            <option value="jung">Jungian</option>
+            <option value="freud">Freudian</option>
+            <option value="gestalt">Gestalt</option>
+            <option value="shamanic">Shamanic</option>
+            <option value="cog">Cognitive / Neuropsychological</option>
+          </select>
+        </div>
+        <div style="flex:1">
+          <label>Depth</label>
+          <select id="depth">
+            <option value="plain">Plain Language</option>
+            <option value="standard" selected>Standard</option>
+            <option value="advanced">Advanced (Technical)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <button id="copyPrompt" class="accent">Copy Prompt for Incognito ChatGPT</button>
+        <button id="clear">Clear</button>
+      </div>
+
+      <p class="footer-note">
+        This prototype stores nothing. Copy the generated prompt, paste it into an Incognito ChatGPT tab, copy the model’s output, then paste it into the box on the right.
+      </p>
+    </section>
+
+    <!-- Output Paster -->
+    <section class="card">
+      <label>Paste Model Output</label>
+      <textarea id="output" class="out-box" placeholder="Paste the interpretation here..."></textarea>
+      <div class="row">
+        <button id="copyOutput">Copy Output</button>
+      </div>
+      <p class="footer-note small">
+        Tip: you can keep the **Depth** selector and re-run a “second pass” on the same text later (e.g., take Standard output → convert to Plain or Advanced) once we add that step.
+      </p>
+    </section>
+
+    <!-- Prompt Preview (read-only) -->
+    <section class="card" style="grid-column:1/-1">
+      <label>Generated Prompt Preview</label>
+      <pre id="preview" class="mono" style="margin-top:8px;"></pre>
+      <p class="small">
+        ⚠️ <b>Freud safety note:</b> the “Plain Language” depth auto-sanitizes sexual terms. “Standard” and “Advanced” are where we’ll hook in age gates later.
+      </p>
+    </section>
+  </main>
+
+  <script>
+    const dreamEl = document.getElementById('dream');
+    const frameworkEl = document.getElementById('framework');
+    const depthEl = document.getElementById('depth');
+    const previewEl = document.getElementById('preview');
+    const outputEl = document.getElementById('output');
+
+    const PROMPTS = {
+      jung: (depth, dream) => `
+You are a Jungian dream analyst. Interpret the following dream using core Jungian concepts.
+Keep the tone ${depth==='plain'?'simple and accessible':'educational and exploratory'}, not therapeutic.
+Do not include greetings or questions.
+First, provide a clear **table** mapping each dream element to its Jungian interpretation.
+Then, write a short section titled **Interpretation** that weaves the elements together into one coherent, easy-to-grasp whole.
+End with a concluding insight, not a question.
+
+Dream:
+${dream.trim()}
+`.trim(),
+
+      freud: (depth, dream) => {
+        const base = `
+You are a Freudian dream analyst. Interpret the following dream using core Freudian concepts only.
+Keep the tone ${depth==='plain'?'simple and accessible':'educational and exploratory'}, not therapeutic.
+Do not include greetings or questions.
+First, provide a clear **table** mapping each dream element to its Freudian interpretation.
+Then, write a section titled **Interpretation** that explains the dream as the disguised fulfillment of repressed wishes or conflicts, referencing Freudian ideas such as repression, wish fulfillment, Oedipal dynamics, unconscious desire, sexuality, and aggression.
+Use clear and concise language.
+Finally, add a short section titled **Concluding Insight** that summarizes what this dream reveals about the dreamer’s unconscious conflicts and desires.
+
+Dream:
+${dream.trim()}
+`.trim();
+
+        if (depth === 'plain') {
+          return base.replace(
+            'such as repression, wish fulfillment, Oedipal dynamics, unconscious desire, sexuality, and aggression.',
+            'such as repression, wish fulfillment, unconscious desire, and conflict. Avoid explicit sexual terminology; use neutral, age-appropriate language (e.g., “strong impulses,” “taboo wishes,” “power struggles”).'
+          );
+        }
+        return base;
+      },
+
+      gestalt: (depth, dream) => `
+You are a Gestalt dream analyst. Interpret the dream as projections or parts of the self in the here-and-now.
+Keep the tone ${depth==='plain'?'simple and accessible':'educational and exploratory'}, not therapeutic.
+Do not explain Gestalt theory; focus on the dream.
+Provide a **table** mapping each element to a Gestalt interpretation, then an **Interpretation** section that integrates it, and a **Concluding Insight**.
+
+Dream:
+${dream.trim()}
+`.trim(),
+
+      shamanic: (depth, dream) => `
+You are a Shamanic dream analyst. Interpret the dream using core Shamanic concepts (power animals, ancestral guidance, thresholds).
+Keep the tone ${depth==='plain'?'simple and accessible':'educational and exploratory'}, not therapeutic.
+Provide a **table** of elements → meanings, then **Interpretation**, then a **Concluding Insight**.
+Avoid greetings and questions.
+
+Dream:
+${dream.trim()}
+`.trim(),
+
+      cog: (depth, dream) => `
+You are a Cognitive/Neuropsychological dream analyst. Interpret the dream using brain/REM/emotion-memory concepts.
+Keep the tone ${depth==='plain'?'everyday language':'educational and precise'}, not therapeutic.
+Provide a **table** mapping elements to cognitive/neural interpretation, then an **Interpretation**, then a **Concluding Insight**.
+
+Dream:
+${dream.trim()}
+`.trim(),
+    };
+
+    function buildPrompt(){
+      const f = frameworkEl.value;
+      const d = depthEl.value;
+      const dream = dreamEl.value || '[Paste dream here]';
+      const p = PROMPTS[f](d, dream);
+      previewEl.textContent = p;
+      return p;
+    }
+
+    dreamEl.addEventListener('input', buildPrompt);
+    frameworkEl.addEventListener('change', buildPrompt);
+    depthEl.addEventListener('change', buildPrompt);
+    buildPrompt();
+
+    document.getElementById('copyPrompt').addEventListener('click', async () => {
+      const p = buildPrompt();
+      await navigator.clipboard.writeText(p);
+      alert('Prompt copied! Paste into an Incognito ChatGPT tab.');
+    });
+    document.getElementById('copyOutput').addEventListener('click', async () => {
+      await navigator.clipboard.writeText(outputEl.value);
+      alert('Output copied.');
+    });
+    document.getElementById('clear').addEventListener('click', () => {
+      dreamEl.value = '';
+      outputEl.value = '';
+      buildPrompt();
+    });
+  </script>
+</body>
+</html>
