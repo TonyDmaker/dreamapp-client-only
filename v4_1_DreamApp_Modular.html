@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DreamApp v4.1 – Modular Desktop</title>
+<style>
+  /* ===== Theme tokens ===== */
+  :root{
+    --bg:#0f1220; --panel:#161a2b; --ink:#e9efff; --muted:#93a0c2;
+    --accent:#7cc6ff; --accent-2:#444dd8; --border:#26324a;
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+    --radius:14px;
+    --sidebar-w: 280px;            /* live width for grid column (updates w/ splitter) */
+    --sidebar-w-min: 56px;         /* collapsed width */
+  }
+
+  *{ box-sizing:border-box }
+  html,body{ height:100% }
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif;
+    overflow:hidden; /* desktop handles scroll */
+  }
+
+  /* ===== App grid =====
+     Left column is the sidebar; right column is the desktop.
+     We keep column 0 width in sync with --sidebar-w for splitter/collapse. */
+  .app{
+    display:grid;
+    grid-template-columns: var(--sidebar-w) 1fr;  /* ← reactive */
+    height:100%;
+  }
+
+  /* ===== Sidebar (collapsible + resizable) ===== */
+  .sidebar{
+    background:linear-gradient(180deg, #0f1326 0%, #0c0f1f 100%);
+    border-right:1px solid var(--border);
+    overflow:hidden;               /* no scroll bleed */
+    position:relative;
+    transition: width .2s ease;    /* smooth collapse */
+  }
+  .sidebar__inner{ height:100%; overflow:auto; padding:16px; }
+  .sidebar h1{ margin:0 0 10px; font-size:16px; display:flex; gap:8px; align-items:center; }
+  .badge{font-size:12px; color:#cdd7ff; background:#1f2440; border:1px solid #2a335a; padding:2px 8px; border-radius:999px;}
+
+  /* Collapse toggle */
+  .toggle{
+    position:absolute; top:10px; right:10px;
+    background:#141836; border:1px solid var(--border); color:var(--ink);
+    border-radius:10px; padding:6px 10px; cursor:pointer; z-index:2;
+  }
+  /* Collapsed mode visually trims content but still keeps a small rail */
+  .collapsed .sidebar__inner{ padding:12px 8px; }
+  .collapsed .section-title, .collapsed .about, .collapsed .tip,
+  .collapsed .btn-label { display:none; }
+  .collapsed .menu{ gap:8px; }
+  .collapsed .menu button{ justify-content:center; }
+
+  /* Sidebar splitter (draggable vertical bar) */
+  .splitter{
+    position:absolute;
+    top:0; right:-4px; width:8px; height:100%;
+    cursor:col-resize; z-index:3;
+    /* invisible hit area; we keep visuals subtle */
+  }
+
+  /* ===== Left menu (draggable reorder; no toggle-on-click anymore) ===== */
+  .menu{ display:flex; flex-direction:column; gap:10px; margin:14px 0 18px; }
+  .menu button{
+    display:flex; align-items:center; gap:10px;
+    width:100%; padding:12px; text-align:left;
+    color:var(--ink); background:#12162c; border:1px solid var(--border);
+    border-radius:10px; cursor:grab; user-select:none;
+  }
+  .menu button:active{ cursor:grabbing; }
+  .menu button.drag-over{ outline:2px dashed var(--accent); }
+  .menu .handle{ font-weight:700; color:#6f7bb0; }
+  .menu .btn-label{ flex:1; }
+  .menu .dot{ width:8px; height:8px; border-radius:50%; background:var(--accent-2); opacity:.5; }
+
+  /* ===== Desktop (scrollable canvas) ===== */
+  .desktop{
+    position:relative; height:100%;
+    overflow:auto; padding:20px 24px 40px;
+  }
+
+  /* ===== Windows ===== */
+  .win{
+    position:absolute; display:flex; flex-direction:column;
+    background:var(--panel); border:1px solid var(--border);
+    border-radius:var(--radius); box-shadow:var(--shadow);
+    width:520px; min-height:160px;
+  }
+  .win__head{
+    padding:12px 14px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; gap:10px; cursor:move;
+  }
+  .win__title{ font-weight:600; color:#cfe3ff; font-size:13.5px; flex:1; }
+  .win__close{
+    background:#1a2042; border:1px solid var(--border); color:#cfd7ff;
+    border-radius:8px; padding:4px 8px; cursor:pointer; font-weight:700;
+  }
+  .win__body{ padding:12px; overflow:auto; flex:1; }
+  .win__actions{ display:flex; gap:8px; padding:0 12px 12px; }
+  .btn{ background:#1a2042; border:1px solid var(--border); color:var(--ink);
+        padding:8px 10px; border-radius:10px; cursor:pointer; }
+  .btn.primary{ background:#1a2a4f; border-color:#2b3a6b; }
+
+  textarea, select{
+    width:100%; background:#0f1635; color:var(--ink); border:1px solid var(--border);
+    border-radius:10px; padding:10px; resize:vertical; min-height:100px;
+  }
+  select{ min-height:auto; }
+
+  /* ===== Resizers on all 4 edges + corners ===== */
+  .resizer{ position:absolute; background:transparent; }
+  .r-n{ top:-3px; left:10px; right:10px; height:6px; cursor:n-resize; }
+  .r-s{ bottom:-3px; left:10px; right:10px; height:6px; cursor:s-resize; }
+  .r-e{ top:10px; right:-3px; bottom:10px; width:6px; cursor:e-resize; }
+  .r-w{ top:10px; left:-3px; bottom:10px; width:6px; cursor:w-resize; }
+  .r-ne{ top:-4px; right:-4px; width:10px; height:10px; cursor:ne-resize; }
+  .r-nw{ top:-4px; left:-4px; width:10px; height:10px; cursor:nw-resize; }
+  .r-se{ bottom:-4px; right:-4px; width:10px; height:10px; cursor:se-resize; }
+  .r-sw{ bottom:-4px; left:-4px; width:10px; height:10px; cursor:sw-resize; }
+
+  /* ===== Scrollbars grey until hover ===== */
+  .desktop::-webkit-scrollbar,
+  .win__body::-webkit-scrollbar,
+  .sidebar__inner::-webkit-scrollbar{ width:10px; height:10px; }
+  .desktop::-webkit-scrollbar-track,
+  .win__body::-webkit-scrollbar-track,
+  .sidebar__inner::-webkit-scrollbar-track{ background:transparent; }
+  .desktop::-webkit-scrollbar-thumb,
+  .win__body::-webkit-scrollbar-thumb,
+  .sidebar__inner::-webkit-scrollbar-thumb{ background:#262c45; border-radius:8px; }
+  .desktop:hover::-webkit-scrollbar-thumb,
+  .win__body:hover::-webkit-scrollbar-thumb,
+  .sidebar__inner:hover::-webkit-scrollbar-thumb{ background:#3a4370; }
+  .desktop, .win__body, .sidebar__inner{ scrollbar-color:#262c45 transparent; }
+  .desktop:hover, .win__body:hover, .sidebar__inner:hover{ scrollbar-color:#3a4370 transparent; }
+
+  .section-title{ color:#a9b6dc; margin:14px 0 6px; }
+  .note{ font-size:12.5px; color:var(--muted); }
+</style>
+</head>
+<body>
+  <div class="app" id="app">
+    <!-- ===== SIDEBAR ===== -->
+    <aside class="sidebar" id="sidebar" style="width:var(--sidebar-w)">
+      <button class="toggle" id="toggle">☰</button>
+      <div class="splitter" id="splitter" title="Drag to resize"></div>
+
+      <div class="sidebar__inner">
+        <h1>DreamApp <span class="badge">v4.1</span></h1>
+
+        <div class="section-title">Windows</div>
+        <div class="menu" id="menu" aria-label="Drag to reorder">
+          <!-- data-target links to corresponding window ids -->
+          <button draggable="true" data-target="win-framework">
+            <span class="handle">⋮⋮</span><span class="btn-label">Framework & Dream</span><span class="dot"></span>
+          </button>
+          <button draggable="true" data-target="win-prompt">
+            <span class="handle">⋮⋮</span><span class="btn-label">Prompt Preview / Copy</span><span class="dot"></span>
+          </button>
+          <button draggable="true" data-target="win-depth">
+            <span class="handle">⋮⋮</span><span class="btn-label">Depth Prompt</span><span class="dot"></span>
+          </button>
+          <button draggable="true" data-target="win-output">
+            <span class="handle">⋮⋮</span><span class="btn-label">Model Output (paste)</span><span class="dot"></span>
+          </button>
+          <button draggable="true" data-target="win-depthout">
+            <span class="handle">⋮⋮</span><span class="btn-label">Depth Output</span><span class="dot"></span>
+          </button>
+          <button draggable="true" data-target="win-notes">
+            <span class="handle">⋮⋮</span><span class="btn-label">Notes</span><span class="dot"></span>
+          </button>
+        </div>
+
+        <div class="tip">Tip: drag window headers to move; drag any edge/corner to resize.</div>
+
+        <div class="about" style="margin-top:14px;">
+          <div class="section-title">About</div>
+          <div class="note">
+            Client-only prototype (no keys, no storage). Copy prompts into your model and paste results back. Window layout is autosaved locally.
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ===== DESKTOP ===== -->
+    <main class="desktop" id="desktop">
+      <!-- Framework & Dream -->
+      <section class="win" id="win-framework" style="left:24px; top:24px; width:680px;">
+        <header class="win__head">
+          <div class="win__title">Framework & Dream</div>
+          <button class="win__close" data-close="win-framework">✕</button>
+        </header>
+        <div class="win__body">
+          <label>Interpretation framework</label>
+          <select id="framework">
+            <option>Jungian (v1)</option>
+            <option>Freudian (v2)</option>
+            <option>Gestalt (v3)</option>
+            <option>Shamanic (v1)</option>
+            <option>Cognitive/Neuropsych (v1)</option>
+          </select>
+          <label style="display:block;margin-top:10px;">Dream text</label>
+          <textarea id="dream" placeholder="Paste your dream here..."></textarea>
+        </div>
+        <div class="win__actions">
+          <button class="btn primary" id="copyFrameworkPrompt">Copy framework prompt (Standard)</button>
+          <button class="btn" id="clearDream">Clear</button>
+        </div>
+        <!-- Edge resizers -->
+        <div class="resizer r-n"></div><div class="resizer r-s"></div>
+        <div class="resizer r-e"></div><div class="resizer r-w"></div>
+        <div class="resizer r-ne"></div><div class="resizer r-nw"></div>
+        <div class="resizer r-se"></div><div class="resizer r-sw"></div>
+      </section>
+
+      <!-- Prompt Preview / Copy -->
+      <section class="win" id="win-prompt" style="left:24px; top:370px; width:680px;">
+        <header class="win__head">
+          <div class="win__title">Prompt Preview / Copy</div>
+          <button class="win__close" data-close="win-prompt">✕</button>
+        </header>
+        <div class="win__body">
+          <textarea id="promptPreview" placeholder="Framework prompt preview will appear here…"></textarea>
+        </div>
+        <div class="win__actions">
+          <button class="btn" id="copyPrompt">Copy</button>
+        </div>
+        <div class="resizer r-n"></div><div class="resizer r-s"></div>
+        <div class="resizer r-e"></div><div class="resizer r-w"></div>
+        <div class="resizer r-ne"></div><div class="resizer r-nw"></div>
+        <div class="resizer r-se"></div><div class="resizer r-sw"></div>
+      </section>
+
+      <!-- Depth Prompt -->
+      <section class="win" id="win-depth" style="left:740px; top:24px; width:560px;">
+        <header class="win__head">
+          <div class="win__title">Depth Prompt</div>
+          <button class="win__close" data-close="win-depth">✕</button>
+        </header>
+        <div class="win__body">
+          <textarea id="depthPrompt" placeholder="Depth prompt (Plain / Standard / Advanced) will generate here…"></textarea>
+        </div>
+        <div class="win__actions">
+          <button class="btn" id="copyDepth">Copy Depth prompt</button>
+          <button class="btn" id="clearDepth">Clear</button>
+        </div>
+        <div class="resizer r-n"></div><div class="resizer r-s"></div>
+        <div class="resizer r-e"></div><div class="resizer r-w"></div>
+        <div class="resizer r-ne"></div><div class="resizer r-nw"></div>
+        <div class="resizer r-se"></div><div class="resizer r-sw"></div>
+      </section>
+
+      <!-- Model Output -->
+      <section class="win" id="win-output" style="left:24px; top:720px; width:680px; height:280px;">
+        <header class="win__head">
+          <div class="win__title">Model Output (paste here)</div>
+          <button class="win__close" data-close="win-output">✕</button>
+        </header>
+        <div class="win__body">
+          <textarea id="modelOutput" placeholder="Paste the model's interpretation here…"></textarea>
+        </div>
+        <div class="resizer r-n"></div><div class="resizer r-s"></div>
+        <div class="resizer r-e"></div><div class="resizer r-w"></div>
+        <div class="resizer r-ne"></div><div class="resizer r-nw"></div>
+        <div class="resizer r-se"></div><div class="resizer r-sw"></div>
+      </section>
+
+      <!-- Depth Output -->
+      <section class="win" id="win-depthout" style="left:740px; top:420px; width:560px; height:280px;">
+        <header class="win__head">
+          <div class="win__title">Depth Output</div>
+          <button class="win__close" data-close="win-depthout">✕</button>
+        </header>
+        <div class="win__body">
+          <textarea id="depthOutput" placeholder="Paste the second-pass (Plain / Standard / Advanced) output here…"></textarea>
+        </div>
+        <div class="resizer r-n"></div><div class="resizer r-s"></div>
+        <div class="resizer r-e"></div><div class="resizer r-w"></div>
+        <div class="resizer r-ne"></div><div class="resizer r-nw"></div>
+        <div class="resizer r-se"></div><div class="resizer r-sw"></div>
+      </section>
+
+      <!-- Notes -->
+      <section class="win" id="win-notes" style="left:740px; top:720px; width:560px; height:200px;">
+        <header class="win__head">
+          <div class="win__title">Notes</div>
+          <button class="win__close" data-close="win-notes">✕</button>
+        </header>
+        <div class="win__body">
+          <textarea id="notes" placeholder="Scratchpad…"></textarea>
+        </div>
+        <div class="resizer r-n"></div><div class="resizer r-s"></div>
+        <div class="resizer r-e"></div><div class="resizer r-w"></div>
+        <div class="resizer r-ne"></div><div class="resizer r-nw"></div>
+        <div class="resizer r-se"></div><div class="resizer r-sw"></div>
+      </section>
+    </main>
+  </div>
+
+<script>
+/* ===========================================================
+   v4.1 Desktop JS
+   Major sections:
+   1) Sidebar collapse + splitter resize (preserves width)
+   2) Draggable menu reorder + focus-on-click
+   3) Window movement, edge/corner resize, close/reopen
+   4) Autosave/restore geometry
+   5) Prompt plumbing (unchanged behavior from v4)
+   =========================================================== */
+
+/* ---------- 1) Sidebar collapse + splitter ---------- */
+const app    = document.getElementById('app');
+const sidebar= document.getElementById('sidebar');
+const toggle = document.getElementById('toggle');
+const splitter = document.getElementById('splitter');
+
+function setSidebarWidth(px){
+  /* Update CSS var and inline width so grid column reacts immediately */
+  px = Math.max(parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-w-min'))||56, px);
+  document.documentElement.style.setProperty('--sidebar-w', px+'px');
+  sidebar.style.width = px+'px';
+  localStorage.setItem('da_v41_sidebar_w', String(px));
+}
+
+toggle.addEventListener('click', ()=>{
+  const collapsed = sidebar.classList.toggle('collapsed');
+  // On collapse we snap to min width; on expand restore stored width or default
+  if(collapsed){
+    setSidebarWidth(parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-w-min'))||56);
+    localStorage.setItem('da_v41_sidebar_collapsed','1');
+  }else{
+    const w = parseInt(localStorage.getItem('da_v41_sidebar_w')||'280',10);
+    setSidebarWidth(w || 280);
+    localStorage.setItem('da_v41_sidebar_collapsed','0');
+  }
+});
+
+/* Drag-to-resize sidebar */
+let sizingSide=false, sx=0, startW=0;
+splitter.addEventListener('mousedown', (e)=>{
+  sizingSide=true; sx=e.clientX; startW=sidebar.getBoundingClientRect().width;
+  document.body.style.userSelect='none';
+});
+window.addEventListener('mousemove', (e)=>{
+  if(!sizingSide) return;
+  const dx = e.clientX - sx;
+  setSidebarWidth(startW + dx);
+});
+window.addEventListener('mouseup', ()=>{
+  if(!sizingSide) return; sizingSide=false; document.body.style.userSelect='';
+});
+
+/* Restore initial sidebar state */
+(function restoreSidebar(){
+  const collapsed = localStorage.getItem('da_v41_sidebar_collapsed')==='1';
+  const savedW = parseInt(localStorage.getItem('da_v41_sidebar_w')||'280',10);
+  if(collapsed){ sidebar.classList.add('collapsed'); setSidebarWidth(parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-w-min'))||56); }
+  else { setSidebarWidth(savedW || 280); }
+})();
+
+/* ---------- 2) Draggable menu reorder + focus-on-click (no toggle) ---------- */
+const menu = document.getElementById('menu');
+let dragSrc=null;
+
+menu.addEventListener('dragstart', e=>{
+  const btn = e.target.closest('button'); if(!btn) return;
+  dragSrc = btn; e.dataTransfer.effectAllowed='move';
+});
+menu.addEventListener('dragover', e=>{
+  e.preventDefault();
+  const btn = e.target.closest('button'); if(!btn || btn===dragSrc) return;
+  btn.classList.add('drag-over');
+});
+menu.addEventListener('dragleave', e=>{
+  const btn = e.target.closest('button'); if(btn) btn.classList.remove('drag-over');
+});
+menu.addEventListener('drop', e=>{
+  e.preventDefault();
+  const btn = e.target.closest('button');
+  if(btn && dragSrc && btn!==dragSrc){
+    btn.classList.remove('drag-over');
+    const kids=[...menu.children];
+    const a=kids.indexOf(dragSrc), b=kids.indexOf(btn);
+    if(a<b) menu.insertBefore(dragSrc, btn.nextSibling); else menu.insertBefore(dragSrc, btn);
+    saveMenuOrder();
+  }
+});
+function saveMenuOrder(){
+  const order=[...menu.querySelectorAll('button')].map(b=>b.dataset.target);
+  localStorage.setItem('da_v41_menu_order', JSON.stringify(order));
+}
+(function restoreMenu(){
+  try{
+    const saved = JSON.parse(localStorage.getItem('da_v41_menu_order')||'[]');
+    if(saved.length){
+      const map = Object.fromEntries([...menu.children].map(el=>[el.dataset.target, el]));
+      saved.forEach(id=> map[id] && menu.appendChild(map[id]));
+    }
+  }catch{}
+})();
+
+/* Focus-on-click: bring window to front; no visibility toggling */
+menu.addEventListener('click', e=>{
+  const btn = e.target.closest('button'); if(!btn) return;
+  const win = document.getElementById(btn.dataset.target);
+  if(win){ win.style.display='flex'; bringToFront(win); }
+});
+
+/* ---------- 3) Windows: move, resize (all sides), close buttons ---------- */
+const desktop = document.getElementById('desktop');
+let z = 10;
+function bringToFront(win){ win.style.zIndex = ++z; }
+
+/* Movement (title bar) + edge/corner resizers */
+document.querySelectorAll('.win').forEach(win=>{
+  bringToFront(win);
+
+  /* Close button */
+  win.querySelector('.win__close')?.addEventListener('click', (e)=>{
+    const id = e.currentTarget.getAttribute('data-close');
+    const w  = document.getElementById(id);
+    if(w){ w.style.display='none'; saveLayout(); }
+  });
+
+  /* Drag by header */
+  const head = win.querySelector('.win__head');
+  let startX, startY, startLeft, startTop, dragging=false;
+  head.addEventListener('mousedown', (e)=>{
+    // Avoid starting move when clicking close button
+    if(e.target.classList.contains('win__close')) return;
+    dragging=true; bringToFront(win);
+    startX=e.clientX; startY=e.clientY;
+    const rect = win.getBoundingClientRect();
+    const viewport = desktop.getBoundingClientRect();
+    startLeft = rect.left - viewport.left + desktop.scrollLeft;
+    startTop  = rect.top  - viewport.top  + desktop.scrollTop;
+    function onMove(ev){
+      if(!dragging) return;
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      win.style.left = (startLeft + dx) + 'px';
+      win.style.top  = (startTop  + dy) + 'px';
+    }
+    function onUp(){ dragging=false; document.removeEventListener('mousemove', onMove); saveLayout(); }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp, {once:true});
+    e.preventDefault();
+  });
+
+  /* Edge/corner resizers (eight hotspots) */
+  const mins = {w:380, h:140};
+  const resizers = win.querySelectorAll('.resizer');
+  let sizing=false, sx=0, sy=0, sl=0, st=0, sw=0, sh=0, role='';
+  resizers.forEach(r=>{
+    r.addEventListener('mousedown', (e)=>{
+      sizing=true; bringToFront(win);
+      const rect = win.getBoundingClientRect();
+      const vp   = desktop.getBoundingClientRect();
+      sx=e.clientX; sy=e.clientY;
+      sl = rect.left - vp.left + desktop.scrollLeft;
+      st = rect.top  - vp.top  + desktop.scrollTop;
+      sw = rect.width; sh = rect.height;
+      role = [...r.classList].find(c=>c.startsWith('r-')); // r-n / r-se etc.
+      document.addEventListener('mousemove', onSize);
+      document.addEventListener('mouseup', stopSize, {once:true});
+      e.preventDefault();
+    });
+  });
+  function onSize(e){
+    if(!sizing) return;
+    let dx = e.clientX - sx, dy = e.clientY - sy;
+    let newL=sl, newT=st, newW=sw, newH=sh;
+
+    if(role.includes('e')) newW = Math.max(mins.w, sw + dx);
+    if(role.includes('s')) newH = Math.max(mins.h, sh + dy);
+    if(role.includes('w')) { newW = Math.max(mins.w, sw - dx); newL = sl + dx; }
+    if(role.includes('n')) { newH = Math.max(mins.h, sh - dy); newT = st + dy; }
+
+    win.style.left = newL+'px'; win.style.top = newT+'px';
+    win.style.width = newW+'px'; win.style.height = newH+'px';
+  }
+  function stopSize(){
+    sizing=false; document.removeEventListener('mousemove', onSize); saveLayout();
+  }
+
+  /* Focus on click */
+  win.addEventListener('mousedown', ()=> bringToFront(win));
+});
+
+/* ---------- 4) Layout autosave/restore ---------- */
+function saveLayout(){
+  const data = {};
+  document.querySelectorAll('.win').forEach(w=>{
+    data[w.id] = {
+      left:w.style.left, top:w.style.top,
+      width:w.style.width, height:w.style.height,
+      z:w.style.zIndex, display:getComputedStyle(w).display
+    };
+  });
+  localStorage.setItem('da_v41_layout', JSON.stringify(data));
+}
+(function restoreLayout(){
+  try{
+    const data = JSON.parse(localStorage.getItem('da_v41_layout')||'{}');
+    Object.entries(data).forEach(([id,geo])=>{
+      const w=document.getElementById(id); if(!w) return;
+      Object.assign(w.style, {
+        left:geo.left, top:geo.top, width:geo.width, height:geo.height, zIndex:geo.z
+      });
+      if(geo.display) w.style.display = geo.display;
+      z = Math.max(z, parseInt(geo.z||10,10));
+    });
+  }catch{}
+})();
+
+/* ---------- 5) Prompt plumbing (same as v4) ---------- */
+const frameworkSelect = document.getElementById('framework');
+const dreamEl = document.getElementById('dream');
+const promptPreview = document.getElementById('promptPreview');
+const depthPrompt = document.getElementById('depthPrompt');
+
+function buildFrameworkPrompt(){
+  const fw = frameworkSelect.value;
+  const dream = dreamEl.value.trim();
+  const map = {
+    'Jungian (v1)': `You are a Jungian dream analyst. Interpret the following dream using core Jungian concepts.
+Keep the tone educational and exploratory, not therapeutic.
+Do not include greetings or questions.
+First, provide a clear **table** mapping each dream element to its Jungian interpretation.
+Then, write a short section titled **Interpretation** that weaves the elements together into one coherent, easy-to-grasp whole.
+End with a concluding insight, not a question.
+
+Dream: [${dream}]`,
+    'Freudian (v2)': `You are a Freudian dream analyst. Interpret the following dream using core Freudian concepts only.
+Keep the tone educational and exploratory, not therapeutic.
+Do not include greetings or questions.
+First, provide a clear **table** mapping each dream element to its Freudian interpretation.
+Then, write a section titled **Interpretation** that explains the dream as the disguised fulfillment of repressed wishes or conflicts.
+Use clear and concise language that makes Freudian concepts accessible without losing depth.
+Finally, add a short section titled **Concluding Insight** that summarizes the unconscious conflicts revealed.
+
+Dream: [${dream}]`,
+    'Gestalt (v3)': `You are a Gestalt dream analyst. Interpret the following dream using core Gestalt concepts.
+Keep the tone educational and exploratory, not therapeutic.
+Do not include greetings or questions.
+First, provide a clear **table** mapping each dream element to its Gestalt interpretation.
+Then, write a short section titled **Interpretation** that weaves the elements together into one coherent, easy-to-grasp whole.
+End with a concluding insight, not a question.
+
+Dream: [${dream}]`,
+    'Shamanic (v1)': `You are a Shamanic dream analyst. Interpret the following dream using core Shamanic concepts.
+Keep the tone educational and exploratory, not therapeutic.
+Do not include greetings or questions.
+First, provide a clear **table** mapping each dream element to its Shamanic interpretation.
+Then, write a short section titled **Interpretation** that weaves the elements together into one coherent, easy-to-grasp whole.
+End with a concluding insight, not a question.
+
+Dream: [${dream}]`,
+    'Cognitive/Neuropsych (v1)': `You are a Cognitive/Neuropsychological dream analyst. Interpret the following dream using core Cognitive/Neuropsych concepts.
+Keep the tone educational and exploratory, not therapeutic.
+Do not include greetings or questions.
+First, provide a clear **table** mapping each dream element to its Cognitive/Neuropsychological interpretation.
+Then, write a short section titled **Interpretation** that weaves the elements together into one coherent, easy-to-grasp whole.
+End with a concluding insight, not a question.
+
+Dream: [${dream}]`
+  };
+  return map[fw] || '';
+}
+function buildDepthPrompt(){
+  return `Rephrase the following interpretation into one of three styles. Keep factual content identical.
+
+Styles:
+1) Plain Language — minimal jargon; short sentences; everyday words.
+2) Standard — balanced clarity and depth; light terminology.
+3) Advanced (Technical) — precise, theory-accurate terminology and structure.
+
+Return only the rewritten text. Original begins after the line "-----".
+-----`;
+}
+function refreshPrompts(){ promptPreview.value = buildFrameworkPrompt(); depthPrompt.value = buildDepthPrompt(); }
+frameworkSelect.addEventListener('change', refreshPrompts);
+dreamEl.addEventListener('input', refreshPrompts);
+refreshPrompts();
+
+/* Copy helpers */
+function copyText(id){
+  const el=document.getElementById(id);
+  el.select(); document.execCommand('copy');
+}
+document.getElementById('copyFrameworkPrompt').onclick = ()=> copyText('promptPreview');
+document.getElementById('copyPrompt').onclick = ()=> copyText('promptPreview');
+document.getElementById('copyDepth').onclick = ()=> copyText('depthPrompt');
+document.getElementById('clearDream').onclick = ()=>{ dreamEl.value=''; refreshPrompts(); };
+document.getElementById('clearDepth').onclick = ()=>{ depthPrompt.value = buildDepthPrompt(); };
+</script>
+</body>
+</html>
