@@ -200,7 +200,7 @@
       <div class="splitter" id="splitter" title="Drag to resize sidebar"></div>
 
       <div class="sidebar__inner">
-        <h1>DreamApp <span class="badge">v4.4.5</span></h1>
+        <h1>DreamApp <span class="badge">v4.4.5_C</span></h1>
 
         <div class="section-title">Windows</div>
         <div class="menu" id="menu" role="list" aria-label="Window controls - drag to reorder">
@@ -499,7 +499,7 @@ class SidebarManager {
       utils.saveToStorage(CONFIG.LS_KEYS.collapsed, true);
     } else {
       this.sidebar.classList.remove('collapsed');
-      /* v4_4_5 change: restore previous width */
+      /* v4_4_5_C change: restore previous width */
       const prevWidth = utils.loadFromStorage(CONFIG.LS_KEYS.prevWidth, CONFIG.DEFAULT_SIDEBAR_WIDTH);
       this.setWidth(prevWidth);
       utils.saveToStorage(CONFIG.LS_KEYS.collapsed, false);
