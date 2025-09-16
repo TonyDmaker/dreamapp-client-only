@@ -2,130 +2,66 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>DreamApp v4.4.4 – Modular Desktop</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>DreamApp — v4.4.6</title>
 <style>
   :root{
-    --bg:#0f1220; --panel:#161a2b; --ink:#e9efff; --muted:#93a0c2;
-    --accent:#7cc6ff; --accent-2:#444dd8; --border:#26324a;
-    --shadow: 0 10px 30px rgba(0,0,0,.35);
-    --radius:14px;
-    --sidebar-w: 280px;      /* live width */
-    --sidebar-w-min: 56px;   /* collapsed width */
+    --bg:#0d1117;
+    --panel:#0f1521;
+    --panel-2:#111827;
+    --text:#e6e7ea;
+    --muted:#9aa3b2;
+    --accent:#88a0ff;
+    --border:#222a36;
+    --dot:#6ee7b7;
   }
-  *{ box-sizing:border-box }
-  html,body{ height:100% }
-  body{
-    margin:0; background:var(--bg); color:var(--ink);
-    font:14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif;
-    overflow:hidden;
-  }
-  .app{ display:grid; grid-template-columns: var(--sidebar-w) 1fr; height:100%; }
+  html,body{height:100%;}
+  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,'Helvetica Neue',Arial;}
+  *{box-sizing:border-box}
 
   /* Sidebar */
-  .sidebar{
-    background:linear-gradient(180deg, #0f1326 0%, #0c0f1f 100%);
-    border-right:1px solid var(--border);
-    overflow:hidden; position:relative; transition: width .2s ease;
-    width:var(--sidebar-w);
-  }
-  .sidebar__inner{ height:100%; overflow:auto; padding:16px; }
-  .sidebar h1{ margin:0 0 10px; font-size:16px; display:flex; gap:8px; align-items:center; }
-  .badge{font-size:12px; color:#cdd7ff; background:#1f2440; border:1px solid #2a335a; padding:2px 8px; border-radius:999px;}
-  .toggle{
-    position:absolute; top:10px; right:10px;
-    background:#141836; border:1px solid var(--border); color:var(--ink);
-    border-radius:10px; padding:6px 10px; cursor:pointer; z-index:2;
-  }
-  .collapsed .sidebar__inner{ padding:12px 8px; }
-  .collapsed .section-title, .collapsed .about, .collapsed .tip, .collapsed .btn-label { display:none; }
-  .collapsed .menu{ gap:8px; }
-  .collapsed .menu button{ justify-content:center; }
+  .sidebar{position:fixed;left:0;top:0;bottom:0;width:280px;background:linear-gradient(180deg,#0f1521,#0c1120);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:500}
+  .sidebar__head{display:flex;align-items:center;justify-content:space-between;padding:12px 12px;border-bottom:1px solid var(--border)}
+  .badge{display:inline-flex;align-items:center;gap:8px;background:#0e1430;border:1px solid #1b2550;color:#c9d4ff;border-radius:10px;padding:4px 8px;font-weight:700}
+  .menu{padding:12px;overflow:auto}
+  .menu button{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;margin:6px 0;background:transparent;border:1px solid var(--border);color:var(--text);border-radius:12px;cursor:pointer}
+  .menu button .handle{opacity:.5}
+  .menu button .btn-label{flex:1;text-align:left}
+  .menu button.active{border-color:#2b3754;box-shadow:inset 0 0 0 1px #2b3754}
+  .menu button .dot{width:8px;height:8px;border-radius:50%;background:transparent;border:1px solid #38517d}
+  .menu button.active .dot{background:var(--dot);border-color:var(--dot)}
 
-  /* Resizable gutter */
-  .splitter{
-    position:absolute; top:0; right:-4px; width:8px; height:100%;
-    cursor:col-resize; z-index:3;
-  }
+  /* Desktop area */
+  main.desktop{margin-left:280px;padding:16px 16px 40px;position:relative}
+  .win{position:absolute;background:var(--panel);border:1px solid var(--border);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.3);overflow:hidden}
+  .win__head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,#0f172a,#0d1424)}
+  .win__title{font-weight:700}
+  .win__close{margin-left:auto;background:rgba(255,255,255,.03);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:4px 8px;cursor:pointer}
+  .win__body{padding:12px}
+  .win textarea,.win input,.win select{width:100%;background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:10px}
+  .win textarea{min-height:120px;resize:vertical}
+  .win .win__actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .btn{background:#151d31;border:1px solid var(--border);color:var(--text);border-radius:10px;padding:8px 10px;cursor:pointer}
 
-  /* Menu */
-  .menu{ display:flex; flex-direction:column; gap:10px; margin:14px 0 18px; }
-  .menu button{
-    display:flex; align-items:center; gap:10px;
-    width:100%; padding:12px; text-align:left;
-    color:var(--ink); background:#12162c; border:1px solid var(--border);
-    border-radius:10px; cursor:grab; user-select:none; transition:border-color .15s ease, box-shadow .15s ease;
-  }
-  .menu button:active{ cursor:grabbing; }
-  .menu button.drag-over{ outline:2px dashed var(--accent); }
-  .menu .handle{ font-weight:700; color:#6f7bb0; }
-  .menu .btn-label{ flex:1; }
-  .menu .dot{ width:8px; height:8px; border-radius:50%; background:var(--accent-2); opacity:.5; }
-  /* on/off indicator */
-  .menu button.active{
-    border-color: var(--accent);
-    box-shadow: 0 0 0 1px var(--accent) inset;
-  }
-
-  /* Desktop */
-  .desktop{ position:relative; height:100%; overflow:auto; padding:20px 24px 40px; }
-
-  /* Windows */
-  .win{
-    position:absolute; display:flex; flex-direction:column;
-    background:var(--panel); border:1px solid var(--border);
-    border-radius:var(--radius); box-shadow:var(--shadow);
-    width:520px; min-height:160px;
-  }
-  .win__head{
-    padding:12px 14px; border-bottom:1px solid var(--border);
-    display:flex; align-items:center; gap:10px; cursor:move;
-  }
-  .win__title{ font-weight:600; color:#cfe3ff; font-size:13.5px; flex:1; }
-  .win__close{
-    background:#1a2042; border:1px solid var(--border); color:#cfd7ff;
-    border-radius:8px; padding:4px 8px; cursor:pointer; font-weight:700;
-  }
-  .win__body{ padding:12px; overflow:auto; flex:1; }
-  .win__actions{ display:flex; gap:8px; padding:0 12px 12px; flex-wrap:wrap; }
-  .btn{ background:#1a2042; border:1px solid var(--border); color:var(--ink);
-        padding:8px 10px; border-radius:10px; cursor:pointer; }
-  .btn.primary{ background:#1a2a4f; border-color:#2b3a6b; }
-  textarea, select{
-    width:100%; background:#0f1635; color:var(--ink); border:1px solid var(--border);
-    border-radius:10px; padding:10px; resize:vertical; min-height:100px;
-  }
-  select{ min-height:auto; }
-
-  /* Resizers */
-  .resizer{ position:absolute; background:transparent; }
-  .r-n{ top:-3px; left:10px; right:10px; height:6px; cursor:n-resize; }
-  .r-s{ bottom:-3px; left:10px; right:10px; height:6px; cursor:s-resize; }
-  .r-e{ top:10px; right:-3px; bottom:10px; width:6px; cursor:e-resize; }
-  .r-w{ top:10px; left:-3px; bottom:10px; width:6px; cursor:w-resize; }
-  .r-ne{ top:-4px; right:-4px; width:10px; height:10px; cursor:ne-resize; }
-  .r-nw{ top:-4px; left:-4px; width:10px; height:10px; cursor:nw-resize; }
-  .r-se{ bottom:-4px; right:-4px; width:10px; height:10px; cursor:se-resize; }
-  .r-sw{ bottom:-4px; left:-4px; width:10px; height:10px; cursor:sw-resize; }
+  /* simple resizers (corners/edges) */
+  .resizer{position:absolute}
+  .r-n{top:-4px;left:8px;right:8px;height:8px;cursor:n-resize}
+  .r-s{bottom:-4px;left:8px;right:8px;height:8px;cursor:s-resize}
+  .r-e{right:-4px;top:8px;bottom:8px;width:8px;cursor:e-resize}
+  .r-w{left:-4px;top:8px;bottom:8px;width:8px;cursor:w-resize}
+  .r-ne{top:-6px;right:-6px;width:12px;height:12px;cursor:ne-resize}
+  .r-nw{top:-6px;left:-6px;width:12px;height:12px;cursor:nw-resize}
+  .r-se{bottom:-6px;right:-6px;width:12px;height:12px;cursor:se-resize}
+  .r-sw{bottom:-6px;left:-6px;width:12px;height:12px;cursor:sw-resize}
 
   /* Scrollbars */
-  .desktop::-webkit-scrollbar,
-  .win__body::-webkit-scrollbar,
-  .sidebar__inner::-webkit-scrollbar{ width:10px; height:10px; }
-  .desktop::-webkit-scrollbar-track,
-  .win__body::-webkit-scrollbar-track,
-  .sidebar__inner::-webkit-scrollbar-track{ background:transparent; }
-  .desktop::-webkit-scrollbar-thumb,
-  .win__body::-webkit-scrollbar-thumb,
-  .sidebar__inner::-webkit-scrollbar-thumb{ background:#262c45; border-radius:8px; }
-  .desktop:hover::-webkit-scrollbar-thumb,
-  .win__body:hover::-webkit-scrollbar-thumb,
-  .sidebar__inner:hover::-webkit-scrollbar-thumb{ background:#3a4370; }
-  .desktop, .win__body, .sidebar__inner{ scrollbar-color:#262c45 transparent; }
-  .desktop:hover, .win__body:hover, .sidebar__inner:hover{ scrollbar-color:#3a4370 transparent; }
+  *{scrollbar-width:thin;scrollbar-color:#1c2636 transparent}
+  *::-webkit-scrollbar{width:10px;height:10px}
+  *::-webkit-scrollbar-thumb{background:rgba(255,255,255,.06);border-radius:10px}
+  *:hover::-webkit-scrollbar-thumb{background:rgba(255,255,255,.16)}
 
-  .section-title{ color:#a9b6dc; margin:14px 0 6px; }
-  .note{ font-size:12.5px; color:var(--muted); }
+  /* Focus ring */
+  :focus-visible{outline:2px solid rgba(136,160,255,.5);outline-offset:2px}
 </style>
 
 <!-- v4_4_6+ change: user badge style -->
@@ -140,588 +76,312 @@
 </style>
 </head>
 <body>
-  <div class="app" id="app">
-    <aside class="sidebar" id="sidebar">
-      <button class="toggle" id="toggle">☰</button>
-      <div class="splitter" id="splitter" title="Drag to resize"></div>
 
-      <div class="sidebar__inner">
-        <h1>DreamApp <span class="badge">v4.4.4</span></h1>
-
-        <div class="section-title">Windows</div>
-        <div class="menu" id="menu" aria-label="Drag to reorder">
-          <button draggable="true" data-target="win-framework">
-            <span class="handle">⋮⋮</span><span class="btn-label">Framework & Dream</span><span class="dot"></span>
-          </button>
-          <button draggable="true" data-target="win-prompt">
-            <span class="handle">⋮⋮</span><span class="btn-label">Prompt Preview / Copy</span><span class="dot"></span>
-          </button>
-          <button draggable="true" data-target="win-depth">
-            <span class="handle">⋮⋮</span><span class="btn-label">Depth Prompt</span><span class="dot"></span>
-          </button>
-          <button draggable="true" data-target="win-output">
-            <span class="handle">⋮⋮</span><span class="btn-label">Model Output (paste)</span><span class="dot"></span>
-          </button>
-          <button draggable="true" data-target="win-depthout">
-            <span class="handle">⋮⋮</span><span class="btn-label">Depth Output</span><span class="dot"></span>
-          </button>
-          <button draggable="true" data-target="win-notes">
-            <span class="handle">⋮⋮</span><span class="btn-label">Notes</span><span class="dot"></span>
-          </button>
-          <!-- Waking Context -->
-          <button draggable="true" data-target="win-wakeprompt">
-            <span class="handle">⋮⋮</span><span class="btn-label">Waking Context Prompt</span><span class="dot"></span>
-          </button>
-          <button draggable="true" data-target="win-wakeout">
-            <span class="handle">⋮⋮</span><span class="btn-label">Waking Context Output</span><span class="dot"></span>
-          </button>
-        </div>
-
-        <div class="tip">Tip: drag window headers to move; drag any edge/corner to resize.</div>
-
-        <div class="about" style="margin-top:14px;">
-          <div class="section-title">About</div>
-          <div class="note">
-            Client-only prototype (no keys, no storage). Copy prompts into your model and paste results back. Window layout is autosaved locally.
-          </div>
-        </div>
-      </div>
-    </aside>
-
-    <main class="desktop" id="desktop">
-      <!-- Framework & Dream -->
-      <section class="win" id="win-framework" style="left:24px; top:24px; width:680px;">
-        <header class="win__head">
-          <div class="win__title">Framework & Dream</div>
-          <button class="win__close" data-close="win-framework">✕</button>
-        </header>
-        <div class="win__body">
-          <label>Interpretation framework</label>
-          <select id="framework">
-            <option>Jungian (v1)</option>
-            <option>Freudian (v2)</option>
-            <option>Gestalt (v3)</option>
-            <option>Shamanic (v1)</option>
-            <option>Cognitive/Neuropsych (v1)</option>
-          </select>
-          <label style="display:block;margin-top:10px;">Dream text</label>
-          <textarea id="dream" placeholder="Paste your dream here..."></textarea>
-        </div>
-        <div class="win__actions">
-          <button class="btn primary" id="copyFrameworkPrompt">Copy framework prompt (Standard)</button>
-          <button class="btn" id="clearDream">Clear</button>
-        </div>
-        <div class="resizer r-n"></div><div class="resizer r-s"></div>
-        <div class="resizer r-e"></div><div class="resizer r-w"></div>
-        <div class="resizer r-ne"></div><div class="resizer r-nw"></div>
-        <div class="resizer r-se"></div><div class="resizer r-sw"></div>
-      </section>
-
-      <!-- Prompt Preview -->
-      <section class="win" id="win-prompt" style="left:24px; top:370px; width:680px;">
-        <header class="win__head">
-          <div class="win__title">Prompt Preview / Copy</div>
-          <button class="win__close" data-close="win-prompt">✕</button>
-        </header>
-        <div class="win__body">
-          <textarea id="promptPreview" placeholder="Framework prompt preview will appear here…"></textarea>
-        </div>
-        <div class="win__actions">
-          <button class="btn" id="copyPrompt">Copy</button>
-        </div>
-        <div class="resizer r-n"></div><div class="resizer r-s"></div>
-        <div class="resizer r-e"></div><div class="resizer r-w"></div>
-        <div class="resizer r-ne"></div><div class="resizer r-nw"></div>
-        <div class="resizer r-se"></div><div class="resizer r-sw"></div>
-      </section>
-
-      <!-- Depth Prompt -->
-      <section class="win" id="win-depth" style="left:740px; top:24px; width:560px;">
-        <header class="win__head">
-          <div class="win__title">Depth Prompt</div>
-          <button class="win__close" data-close="win-depth">✕</button>
-        </header>
-        <div class="win__body">
-          <textarea id="depthPrompt" placeholder="Depth prompt (Plain / Standard / Advanced) will generate here…"></textarea>
-        </div>
-        <div class="win__actions">
-          <button class="btn" id="copyDepth">Copy Depth prompt</button>
-          <button class="btn" id="clearDepth">Clear</button>
-        </div>
-        <div class="resizer r-n"></div><div class="resizer r-s"></div>
-        <div class="resizer r-e"></div><div class="resizer r-w"></div>
-        <div class="resizer r-ne"></div><div class="resizer r-nw"></div>
-        <div class="resizer r-se"></div><div class="resizer r-sw"></div>
-      </section>
-
-      <!-- Model Output (now with 3 buttons to generate depth prompt) -->
-      <section class="win" id="win-output" style="left:24px; top:720px; width:680px; height:280px;">
-        <header class="win__head">
-          <div class="win__title">Model Output (paste here)</div>
-          <button class="win__close" data-close="win-output">✕</button>
-        </header>
-        <div class="win__body">
-          <textarea id="modelOutput" placeholder="Paste the model's interpretation here…"></textarea>
-        </div>
-        <div class="win__actions">
-          <button class="btn" id="genDepthPlain">Generate depth from Model Output: Plain</button>
-          <button class="btn" id="genDepthStandard">Generate: Standard</button>
-          <button class="btn" id="genDepthAdvanced">Generate: Advanced</button>
-        </div>
-        <div class="resizer r-n"></div><div class="resizer r-s"></div>
-        <div class="resizer r-e"></div><div class="resizer r-w"></div>
-        <div class="resizer r-ne"></div><div class="resizer r-nw"></div>
-        <div class="resizer r-se"></div><div class="resizer r-sw"></div>
-      </section>
-
-      <!-- Depth Output -->
-      <section class="win" id="win-depthout" style="left:740px; top:420px; width:560px; height:280px;">
-        <header class="win__head">
-          <div class="win__title">Depth Output</div>
-          <button class="win__close" data-close="win-depthout">✕</button>
-        </header>
-        <div class="win__body">
-          <textarea id="depthOutput" placeholder="Paste the second-pass (Plain / Standard / Advanced) output here…"></textarea>
-        </div>
-        <div class="resizer r-n"></div><div class="resizer r-s"></div>
-        <div class="resizer r-e"></div><div class="resizer r-w"></div>
-        <div class="resizer r-ne"></div><div class="resizer r-nw"></div>
-        <div class="resizer r-se"></div><div class="resizer r-sw"></div>
-      </section>
-
-      <!-- Notes -->
-      <section class="win" id="win-notes" style="left:740px; top:720px; width:560px; height:200px;">
-        <header class="win__head">
-          <div class="win__title">Notes</div>
-          <button class="win__close" data-close="win-notes">✕</button>
-        </header>
-        <div class="win__body">
-          <textarea id="notes" placeholder="Scratchpad…"></textarea>
-        </div>
-        <div class="resizer r-n"></div><div class="resizer r-s"></div>
-        <div class="resizer r-e"></div><div class="resizer r-w"></div>
-        <div class="resizer r-ne"></div><div class="resizer r-nw"></div>
-        <div class="resizer r-se"></div><div class="resizer r-sw"></div>
-      </section>
-
-      <!-- Waking Context Prompt -->
-      <section class="win" id="win-wakeprompt" style="left:24px; top:1020px; width:680px;">
-        <header class="win__head">
-          <div class="win__title">Waking Context Prompt</div>
-          <button class="win__close" data-close="win-wakeprompt">✕</button>
-        </header>
-        <div class="win__body">
-          <label>Waking life context (free text)</label>
-          <textarea id="wakingContext" placeholder="Add relevant waking-life details (e.g., current stresses, relationships, milestones)…"></textarea>
-
-          <label style="display:block;margin-top:10px;">Prompt (auto-built from Model Output + Context)</label>
-          <textarea id="wakePromptPreview" placeholder="Prompt will assemble here…" style="min-height:140px;"></textarea>
-        </div>
-        <div class="win__actions">
-          <button class="btn" id="copyWakePrompt">Copy</button>
-          <button class="btn" id="clearWake">Clear</button>
-        </div>
-        <div class="resizer r-n"></div><div class="resizer r-s"></div>
-        <div class="resizer r-e"></div><div class="resizer r-w"></div>
-        <div class="resizer r-ne"></div><div class="resizer r-nw"></div>
-        <div class="resizer r-se"></div><div class="resizer r-sw"></div>
-      </section>
-
-      <!-- Waking Context Output -->
-      <section class="win" id="win-wakeout" style="left:740px; top:1020px; width:560px; height:240px;">
-        <header class="win__head">
-          <div class="win__title">Waking Context Output (paste here)</div>
-          <button class="win__close" data-close="win-wakeout">✕</button>
-        </header>
-        <div class="win__body">
-          <textarea id="wakeOutput" placeholder="Paste the waking-life-inclusive interpretation here…"></textarea>
-        </div>
-        <div class="resizer r-n"></div><div class="resizer r-s"></div>
-        <div class="resizer r-e"></div><div class="resizer r-w"></div>
-        <div class="resizer r-ne"></div><div class="resizer r-nw"></div>
-        <div class="resizer r-se"></div><div class="resizer r-sw"></div>
-      </section>
-    </main>
+<!-- Sidebar -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar__head">
+    <div class="badge">DreamApp <span style="opacity:.7">v4.4.6</span></div>
   </div>
+  <div class="menu" id="menu" aria-label="Drag to reorder">
+    <button draggable="true" data-target="win-framework"><span class="handle">⋮⋮</span><span class="btn-label">Framework & Dream</span><span class="dot"></span></button>
+    <button draggable="true" data-target="win-preview"><span class="handle">⋮⋮</span><span class="btn-label">Prompt Preview / Copy</span><span class="dot"></span></button>
+    <button draggable="true" data-target="win-modelout"><span class="handle">⋮⋮</span><span class="btn-label">Model Output (paste)</span><span class="dot"></span></button>
+    <button draggable="true" data-target="win-depthprompt"><span class="handle">⋮⋮</span><span class="btn-label">Depth Prompt</span><span class="dot"></span></button>
+    <button draggable="true" data-target="win-depthout"><span class="handle">⋮⋮</span><span class="btn-label">Depth Output</span><span class="dot"></span></button>
+    <button draggable="true" data-target="win-wcprompt"><span class="handle">⋮⋮</span><span class="btn-label">Waking Context Prompt</span><span class="dot"></span></button>
+    <button draggable="true" data-target="win-wcout"><span class="handle">⋮⋮</span><span class="btn-label">Waking Context Output</span><span class="dot"></span></button>
 
+    <!-- v4_4_6 fix: add menu items -->
+    <button draggable="true" data-target="win-library">
+      <span class="handle">⋮⋮</span><span class="btn-label">Library</span><span class="dot"></span>
+    </button>
+    <button draggable="true" data-target="win-storage-log">
+      <span class="handle">⋮⋮</span><span class="btn-label">Storage Log</span><span class="dot"></span>
+    </button>
+    <button draggable="true" data-target="win-settings">
+      <span class="handle">⋮⋮</span><span class="btn-label">Settings</span><span class="dot"></span>
+    </button>
+  </div>
+</aside>
+
+<!-- Desktop -->
+<main class="desktop" id="desktop">
+  <!-- Framework & Dream -->
+  <section class="win" id="win-framework" style="left:320px;top:24px;width:520px;height:520px;">
+    <header class="win__head">
+      <div class="win__title">Framework & Dream</div>
+      <button class="win__close" data-close="win-framework">✕</button>
+    </header>
+    <div class="win__body">
+      <label>Dream text</label>
+      <!-- Dream Name field will be injected above this textarea by the profiles script -->
+      <textarea id="dream" placeholder="Type dream here…"></textarea>
+    </div>
+    <div class="resizer r-n"></div><div class="resizer r-s"></div>
+    <div class="resizer r-e"></div><div class="resizer r-w"></div>
+    <div class="resizer r-ne"></div><div class="resizer r-nw"></div>
+    <div class="resizer r-se"></div><div class="resizer r-sw"></div>
+  </section>
+
+  <!-- Prompt Preview -->
+  <section class="win" id="win-preview" style="left:860px;top:24px;width:520px;height:300px;">
+    <header class="win__head"><div class="win__title">Prompt Preview / Copy</div><button class="win__close" data-close="win-preview">✕</button></header>
+    <div class="win__body">
+      <textarea id="promptPreview" placeholder="Preview builds here…" ></textarea>
+      <div class="win__actions">
+        <button class="btn" id="copyPreview">Copy</button>
+      </div>
+    </div>
+    <div class="resizer r-n"></div><div class="resizer r-s"></div>
+    <div class="resizer r-e"></div><div class="resizer r-w"></div>
+    <div class="resizer r-ne"></div><div class="resizer r-nw"></div>
+    <div class="resizer r-se"></div><div class="resizer r-sw"></div>
+  </section>
+
+  <!-- Model Output -->
+  <section class="win" id="win-modelout" style="left:320px;top:560px;width:520px;height:340px;">
+    <header class="win__head"><div class="win__title">Model Output (paste)</div><button class="win__close" data-close="win-modelout">✕</button></header>
+    <div class="win__body">
+      <textarea id="modelOutput" placeholder="Paste model output here…"></textarea>
+      <div class="win__actions">
+        <button class="btn" id="btnPlain">Plain</button>
+        <button class="btn" id="btnStandard">Standard</button>
+        <button class="btn" id="btnAdvanced">Advanced</button>
+      </div>
+    </div>
+    <div class="resizer r-n"></div><div class="resizer r-s"></div>
+    <div class="resizer r-e"></div><div class="resizer r-w"></div>
+    <div class="resizer r-ne"></div><div class="resizer r-nw"></div>
+    <div class="resizer r-se"></div><div class="resizer r-sw"></div>
+  </section>
+
+  <!-- Depth Prompt -->
+  <section class="win" id="win-depthprompt" style="left:860px;top:340px;width:520px;height:240px;">
+    <header class="win__head"><div class="win__title">Depth Prompt</div><button class="win__close" data-close="win-depthprompt">✕</button></header>
+    <div class="win__body">
+      <textarea id="depthPrompt" placeholder="Auto-built by depth buttons…"></textarea>
+      <div class="win__actions"><button class="btn" id="copyDepthPrompt">Copy Depth prompt</button></div>
+    </div>
+    <div class="resizer r-n"></div><div class="resizer r-s"></div>
+    <div class="resizer r-e"></div><div class="resizer r-w"></div>
+    <div class="resizer r-ne"></div><div class="resizer r-nw"></div>
+    <div class="resizer r-se"></div><div class="resizer r-sw"></div>
+  </section>
+
+  <!-- Depth Output -->
+  <section class="win" id="win-depthout" style="left:860px;top:600px;width:520px;height:300px;">
+    <header class="win__head"><div class="win__title">Depth Output</div><button class="win__close" data-close="win-depthout">✕</button></header>
+    <div class="win__body">
+      <textarea id="depthOutput" placeholder="Paste depth output…"></textarea>
+    </div>
+    <div class="resizer r-n"></div><div class="resizer r-s"></div>
+    <div class="resizer r-e"></div><div class="resizer r-w"></div>
+    <div class="resizer r-ne"></div><div class="resizer r-nw"></div>
+    <div class="resizer r-se"></div><div class="resizer r-sw"></div>
+  </section>
+
+  <!-- Waking Context Prompt -->
+  <section class="win" id="win-wcprompt" style="left:1400px;top:24px;width:520px;height:320px;">
+    <header class="win__head"><div class="win__title">Waking Context Prompt</div><button class="win__close" data-close="win-wcprompt">✕</button></header>
+    <div class="win__body">
+      <textarea id="wakingContextPrompt" placeholder="Auto-builds from model output + context…"></textarea>
+      <div class="win__actions"><button class="btn" id="copyWCPrompt">Copy</button></div>
+    </div>
+    <div class="resizer r-n"></div><div class="resizer r-s"></div>
+    <div class="resizer r-e"></div><div class="resizer r-w"></div>
+    <div class="resizer r-ne"></div><div class="resizer r-nw"></div>
+    <div class="resizer r-se"></div><div class="resizer r-sw"></div>
+  </section>
+
+  <!-- Waking Context Output -->
+  <section class="win" id="win-wcout" style="left:1400px;top:360px;width:520px;height:540px;">
+    <header class="win__head"><div class="win__title">Waking Context Output</div><button class="win__close" data-close="win-wcout">✕</button></header>
+    <div class="win__body">
+      <textarea id="wakingContextOutput" placeholder="Paste waking-life–informed output here…"></textarea>
+    </div>
+    <div class="resizer r-n"></div><div class="resizer r-s"></div>
+    <div class="resizer r-e"></div><div class="resizer r-w"></div>
+    <div class="resizer r-ne"></div><div class="resizer r-nw"></div>
+    <div class="resizer r-se"></div><div class="resizer r-sw"></div>
+  </section>
+
+  <!-- v4_4_6 fix: Library window -->
+  <section class="win" id="win-library" style="left:1960px; top:24px; width:520px; height:420px;">
+    <header class="win__head">
+      <div class="win__title">Library</div>
+      <button class="win__close" data-close="win-library">✕</button>
+    </header>
+    <div class="win__body">
+      <div class="win__actions" style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+        <button class="btn" id="libNew">New From Current</button>
+        <button class="btn" id="libSave">Save Current</button>
+        <button class="btn" id="libRefresh">Refresh</button>
+      </div>
+      <label>Saved Dreams</label>
+      <div id="libraryList" style="background:var(--panel-2);border:1px solid var(--border);border-radius:10px; padding:6px; height:220px; overflow:auto;"></div>
+      <div class="win__actions" style="display:flex;gap:8px;margin-top:8px;">
+        <button class="btn" id="libLoad">Load Selected</button>
+        <button class="btn" id="libDelete">Delete Selected</button>
+      </div>
+    </div>
+    <div class="resizer r-n"></div><div class="resizer r-s"></div>
+    <div class="resizer r-e"></div><div class="resizer r-w"></div>
+    <div class="resizer r-ne"></div><div class="resizer r-nw"></div>
+    <div class="resizer r-se"></div><div class="resizer r-sw"></div>
+  </section>
+
+  <!-- v4_4_6 fix: Storage Log window -->
+  <section class="win" id="win-storage-log" style="left:1960px; top:460px; width:520px; height:320px;">
+    <header class="win__head">
+      <div class="win__title">Storage Log</div>
+      <button class="win__close" data-close="win-storage-log">✕</button>
+    </header>
+    <div class="win__body">
+      <textarea id="storageLog" placeholder="Log will appear here…" readonly style="min-height:220px;"></textarea>
+      <div class="win__actions" style="display:flex;gap:8px;margin-top:8px;">
+        <button class="btn" id="logClear">Clear Log</button>
+      </div>
+    </div>
+    <div class="resizer r-n"></div><div class="resizer r-s"></div>
+    <div class="resizer r-e"></div><div class="resizer r-w"></div>
+    <div class="resizer r-ne"></div><div class="resizer r-nw"></div>
+    <div class="resizer r-se"></div><div class="resizer r-sw"></div>
+  </section>
+
+  <!-- v4_4_6 fix: Settings window -->
+  <section class="win" id="win-settings" style="left:1960px; top:800px; width:520px; height:280px;">
+    <header class="win__head">
+      <div class="win__title">Settings</div>
+      <button class="win__close" data-close="win-settings">✕</button>
+    </header>
+    <div class="win__body">
+      <label>Storage Mode</label>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;">
+        <label><input type="radio" name="storageMode" value="auto" checked> Auto (OPFS if available, else IndexedDB)</label>
+        <label><input type="radio" name="storageMode" value="folder"> Connected Folder (Directory Picker)</label>
+        <label><input type="radio" name="storageMode" value="idb"> IndexedDB (fallback)</label>
+      </div>
+      <div class="win__actions" style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn" id="connectFolder">Connect Folder…</button>
+        <button class="btn" id="revokeFolder">Disconnect</button>
+        <button class="btn" id="openFolder" title="Open a folder just to inspect">Open Folder</button>
+      </div>
+      <div style="margin-top:8px;">
+        <div class="note">Status:</div>
+        <div id="storageStatus" class="note">Initializing…</div>
+      </div>
+    </div>
+    <div class="resizer r-n"></div><div class="resizer r-s"></div>
+    <div class="resizer r-e"></div><div class="resizer r-w"></div>
+    <div class="resizer r-ne"></div><div class="resizer r-nw"></div>
+    <div class="resizer r-se"></div><div class="resizer r-sw"></div>
+  </section>
+</main>
+
+<!-- Basic window and menu wiring -->
 <script>
-/* ====================== Sidebar: collapse + width restore ====================== */
-const sidebar  = document.getElementById('sidebar');
-const toggle   = document.getElementById('toggle');
-const splitter = document.getElementById('splitter');
+(function(){
+  const $ = (s, r=document) => r.querySelector(s);
+  const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
+  // move/resize/close minimal behaviors
+  $$('#desktop .win').forEach(win=>{
+    const head = $('.win__head', win);
+    let ox=0, oy=0, dragging=false;
+    head.addEventListener('mousedown',e=>{ dragging=true; ox=e.clientX - win.offsetLeft; oy=e.clientY - win.offsetTop; win.style.zIndex = 999; });
+    window.addEventListener('mouseup',()=>dragging=false);
+    window.addEventListener('mousemove',e=>{ if(!dragging) return; win.style.left=(e.clientX-ox)+'px'; win.style.top=(e.clientY-oy)+'px'; });
 
-const LS = {
-  collapsed: 'da_v44_sidebar_collapsed',
-  width:     'da_v44_sidebar_w',
-  prevWidth: 'da_v44_sidebar_prev_w',
-  menuOrder: 'da_v44_menu_order',
-  layout:    'da_v44_layout'
-};
-
-function setSidebarWidth(px){
-  const min = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-w-min'))||56;
-  px = Math.max(min, px);
-  document.documentElement.style.setProperty('--sidebar-w', px+'px');
-  sidebar.style.width = px+'px';
-  localStorage.setItem(LS.width, String(px));
-}
-
-toggle.addEventListener('click', ()=>{
-  const goingCollapsed = !sidebar.classList.contains('collapsed');
-  if(goingCollapsed){
-    const curW = sidebar.getBoundingClientRect().width;
-    localStorage.setItem(LS.prevWidth, String(curW));
-    sidebar.classList.add('collapsed');
-    setSidebarWidth(parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-w-min'))||56);
-    localStorage.setItem(LS.collapsed,'1');
-  }else{
-    sidebar.classList.remove('collapsed');
-    const prev = parseInt(localStorage.getItem(LS.prevWidth)||'0',10);
-    const saved= parseInt(localStorage.getItem(LS.width)||'280',10);
-    setSidebarWidth(prev || saved || 280);
-    localStorage.setItem(LS.collapsed,'0');
-  }
-});
-
-// Drag to resize
-let sizingSide=false, sx=0, startW=0;
-splitter.addEventListener('mousedown', (e)=>{
-  if(sidebar.classList.contains('collapsed')) return;
-  sizingSide=true; sx=e.clientX; startW=sidebar.getBoundingClientRect().width;
-  document.body.style.userSelect='none';
-});
-window.addEventListener('mousemove', (e)=>{
-  if(!sizingSide) return;
-  const dx = e.clientX - sx;
-  setSidebarWidth(startW + dx);
-});
-window.addEventListener('mouseup', ()=>{
-  if(!sizingSide) return; sizingSide=false; document.body.style.userSelect='';
-});
-
-(function restoreSidebar(){
-  const collapsed = localStorage.getItem(LS.collapsed)==='1';
-  const savedW  = parseInt(localStorage.getItem(LS.width)||'280',10);
-  const prevW   = parseInt(localStorage.getItem(LS.prevWidth)||'0',10);
-  if(collapsed){
-    sidebar.classList.add('collapsed');
-    setSidebarWidth(parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-w-min'))||56);
-  }else{
-    setSidebarWidth(prevW || savedW || 280);
-  }
-})();
-
-/* ====================== Menu: reorder + toggle visibility + indicator ====================== */
-const menu = document.getElementById('menu');
-let dragSrc=null;
-
-menu.addEventListener('dragstart', e=>{
-  const btn = e.target.closest('button'); if(!btn) return;
-  dragSrc = btn; e.dataTransfer.effectAllowed='move';
-});
-menu.addEventListener('dragover', e=>{
-  e.preventDefault();
-  const btn = e.target.closest('button'); if(!btn || btn===dragSrc) return;
-  btn.classList.add('drag-over');
-});
-menu.addEventListener('dragleave', e=>{
-  const btn = e.target.closest('button'); if(btn) btn.classList.remove('drag-over');
-});
-menu.addEventListener('drop', e=>{
-  e.preventDefault();
-  const btn = e.target.closest('button');
-  if(btn && dragSrc && btn!==dragSrc){
-    btn.classList.remove('drag-over');
-    const kids=[...menu.children];
-    const a=kids.indexOf(dragSrc), b=kids.indexOf(btn);
-    if(a<b) menu.insertBefore(dragSrc, btn.nextSibling); else menu.insertBefore(dragSrc, btn);
-    saveMenuOrder();
-  }
-});
-function saveMenuOrder(){
-  const order=[...menu.querySelectorAll('button')].map(b=>b.dataset.target);
-  localStorage.setItem(LS.menuOrder, JSON.stringify(order));
-}
-(function restoreMenu(){
-  try{
-    const saved = JSON.parse(localStorage.getItem(LS.menuOrder)||'[]');
-    if(saved.length){
-      const map = Object.fromEntries([...menu.children].map(el=>[el.dataset.target, el]));
-      saved.forEach(id=> map[id] && menu.appendChild(map[id]));
-    }
-  }catch{}
-})();
-
-// Click -> toggle window + update indicator
-menu.addEventListener('click', e=>{
-  const btn = e.target.closest('button'); if(!btn) return;
-  const id  = btn.dataset.target;
-  const win = document.getElementById(id);
-  if(!win) return;
-  const isHidden = getComputedStyle(win).display === 'none';
-  if(isHidden){ win.style.display='flex'; bringToFront(win); }
-  else{ win.style.display='none'; }
-  updateMenuIndicator(id);
-  saveLayout();
-});
-
-function updateMenuIndicator(winId){
-  const btn = menu.querySelector(`button[data-target="${winId}"]`);
-  const win = document.getElementById(winId);
-  if(!btn || !win) return;
-  const visible = getComputedStyle(win).display !== 'none';
-  btn.classList.toggle('active', visible);
-}
-
-/* ====================== Windows: move, resize, close ====================== */
-const desktop = document.getElementById('desktop');
-let z = 10;
-function bringToFront(win){ win.style.zIndex = ++z; }
-
-document.querySelectorAll('.win').forEach(win=>{
-  bringToFront(win);
-
-  // close button
-  win.querySelector('.win__close')?.addEventListener('click', (e)=>{
-    const id = e.currentTarget.getAttribute('data-close');
-    const w  = document.getElementById(id);
-    if(w){ w.style.display='none'; updateMenuIndicator(id); saveLayout(); }
-  });
-
-  // drag by header
-  const head = win.querySelector('.win__head');
-  let startX, startY, startLeft, startTop, dragging=false;
-  head.addEventListener('mousedown', (e)=>{
-    if(e.target.classList.contains('win__close')) return;
-    dragging=true; bringToFront(win);
-    startX=e.clientX; startY=e.clientY;
-    const rect = win.getBoundingClientRect();
-    const viewport = desktop.getBoundingClientRect();
-    startLeft = rect.left - viewport.left + desktop.scrollLeft;
-    startTop  = rect.top  - viewport.top  + desktop.scrollTop;
-    function onMove(ev){
-      if(!dragging) return;
-      const dx = ev.clientX - startX, dy = ev.clientY - startY;
-      win.style.left = (startLeft + dx) + 'px';
-      win.style.top  = (startTop  + dy) + 'px';
-    }
-    function onUp(){ dragging=false; document.removeEventListener('mousemove', onMove); saveLayout(); }
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp, {once:true});
-    e.preventDefault();
-  });
-
-  // resizers
-  const mins = {w:380, h:140};
-  const resizers = win.querySelectorAll('.resizer');
-  let sizing=false, sx=0, sy=0, sl=0, st=0, sw=0, sh=0, role='';
-  resizers.forEach(r=>{
-    r.addEventListener('mousedown', (e)=>{
-      sizing=true; bringToFront(win);
-      const rect = win.getBoundingClientRect();
-      const vp   = desktop.getBoundingClientRect();
-      sx=e.clientX; sy=e.clientY;
-      sl = rect.left - vp.left + desktop.scrollLeft;
-      st = rect.top  - vp.top  + desktop.scrollTop;
-      sw = rect.width; sh = rect.height;
-      role = [...r.classList].find(c=>c.startsWith('r-'));
-      document.addEventListener('mousemove', onSize);
-      document.addEventListener('mouseup', stopSize, {once:true});
-      e.preventDefault();
-    });
-  });
-  function onSize(e){
-    if(!sizing) return;
-    let dx = e.clientX - sx, dy = e.clientY - sy;
-    let newL=sl, newT=st, newW=sw, newH=sh;
-    if(role.includes('e')) newW = Math.max(mins.w, sw + dx);
-    if(role.includes('s')) newH = Math.max(mins.h, sh + dy);
-    if(role.includes('w')) { newW = Math.max(mins.w, sw - dx); newL = sl + dx; }
-    if(role.includes('n')) { newH = Math.max(mins.h, sh - dy); newT = st + dy; }
-    win.style.left = newL+'px'; win.style.top = newT+'px';
-    win.style.width = newW+'px'; win.style.height = newH+'px';
-  }
-  function stopSize(){
-    sizing=false; document.removeEventListener('mousemove', onSize); saveLayout();
-  }
-
-  // focus
-  win.addEventListener('mousedown', ()=> bringToFront(win));
-});
-
-/* ====================== Layout save/restore ====================== */
-function saveLayout(){
-  const data = {};
-  document.querySelectorAll('.win').forEach(w=>{
-    data[w.id] = {
-      left:w.style.left, top:w.style.top,
-      width:w.style.width, height:w.style.height,
-      z:w.style.zIndex, display:getComputedStyle(w).display
-    };
-  });
-  localStorage.setItem(LS.layout, JSON.stringify(data));
-}
-(function restoreLayout(){
-  try{
-    const data = JSON.parse(localStorage.getItem(LS.layout)||'{}');
-    Object.entries(data).forEach(([id,geo])=>{
-      const w=document.getElementById(id); if(!w) return;
-      Object.assign(w.style, {
-        left:geo.left, top:geo.top, width:geo.width, height:geo.height, zIndex:geo.z
+    // resizers
+    const res = (el, dx, dy)=>{
+      let sx, sy, sw, sh, resizing=false;
+      el.addEventListener('mousedown',e=>{e.stopPropagation(); resizing=true; sx=e.clientX; sy=e.clientY; sw=win.offsetWidth; sh=win.offsetHeight; ox=win.offsetLeft; oy=win.offsetTop;});
+      window.addEventListener('mouseup',()=>resizing=false);
+      window.addEventListener('mousemove',e=>{
+        if(!resizing) return;
+        const mx=e.clientX-sx, my=e.clientY-sy;
+        if(dx==='e') win.style.width = Math.max(360, sw+mx)+'px';
+        if(dx==='w'){ win.style.width=Math.max(360, sw-mx)+'px'; win.style.left=(ox+mx)+'px';}
+        if(dy==='s') win.style.height = Math.max(220, sh+my)+'px';
+        if(dy==='n'){ win.style.height=Math.max(220, sh-my)+'px'; win.style.top=(oy+my)+'px';}
       });
-      if(geo.display) w.style.display = geo.display;
-      z = Math.max(z, parseInt(geo.z||10,10));
+    };
+    res($('.r-e',win),'e',null); res($('.r-w',win),'w',null); res($('.r-s',win),null,'s'); res($('.r-n',win),null,'n');
+    res($('.r-se',win),'e','s'); res($('.r-sw',win),'w','s'); res($('.r-ne',win),'e','n'); res($('.r-nw',win),'w','n');
+
+    // close
+    $('.win__close', win)?.addEventListener('click',()=>{ win.style.display='none'; const id=win.id; const btn = document.querySelector(`.menu button[data-target="${id}"]`); btn?.classList.remove('active'); });
+  });
+
+  // menu toggle
+  $$('#menu button').forEach(btn=>{
+    const id = btn.getAttribute('data-target');
+    btn.addEventListener('click', ()=>{ const w = document.getElementById(id); if(!w) return;
+      const vis = w.style.display !== 'none';
+      w.style.display = vis?'none':'block';
+      btn.classList.toggle('active', !vis);
     });
-  }catch{}
-  // sync all menu indicators
-  document.querySelectorAll('.win').forEach(w=> updateMenuIndicator(w.id));
+    // on load: mark active if visible
+    const w = document.getElementById(id);
+    btn.classList.toggle('active', w && w.style.display !== 'none');
+  });
+
+  // copy helpers
+  function flash(btn){
+    const t=btn.textContent; btn.textContent='Copied!'; setTimeout(()=>btn.textContent=t,1500);
+  }
+  $('#copyPreview')?.addEventListener('click',()=>{ navigator.clipboard.writeText($('#promptPreview')?.value||''); flash($('#copyPreview')); });
+  $('#copyDepthPrompt')?.addEventListener('click',()=>{ navigator.clipboard.writeText($('#depthPrompt')?.value||''); flash($('#copyDepthPrompt')); });
+  $('#copyWCPrompt')?.addEventListener('click',()=>{ navigator.clipboard.writeText($('#wakingContextPrompt')?.value||''); flash($('#copyWCPrompt')); });
+
+  // depth buttons: build rephrase prompt into Depth Prompt and bring to front
+  function buildDepth(kind){
+    const src = $('#modelOutput')?.value || '';
+    const style = kind==='plain'?'Plain':'Advanced';
+    const prompt = `Rephrase the following interpretation in ${style} style (preserve facts, adjust jargon density):\n\n---\n${src}`;
+    $('#depthPrompt').value = prompt;
+    const win = document.getElementById('win-depthprompt'); if(win){ win.style.display='block'; win.style.zIndex=1000; document.querySelector('.menu button[data-target="win-depthprompt"]')?.classList.add('active'); }
+  }
+  $('#btnPlain')?.addEventListener('click',()=>buildDepth('plain'));
+  $('#btnStandard')?.addEventListener('click',()=>buildDepth('standard'));
+  $('#btnAdvanced')?.addEventListener('click',()=>buildDepth('advanced'));
+
+  // Waking-context prompt auto-build (live) from Model Output + Context
+  function rebuildWCPrompt(){
+    const mo = $('#modelOutput')?.value||'';
+    const ctx = $('#wakingContextOutput')?.value||'';
+    const s = [
+      "Create a waking-life–informed revision of the dream interpretation.",
+      "",
+      "Instructions:",
+      "- Start from the existing interpretation provided between <<<INTERPRETATION>>> markers.",
+      "- Integrate the waking-life context provided between [[CONTEXT]] markers wherever it clarifies motives, tensions, or symbols.",
+      "- Keep the same overall structure (Table of elements, then **Interpretation**, then **Concluding Insight**). If no table exists, produce one.",
+      "- Stay educational and exploratory, not therapeutic. Do not add greetings or questions. Avoid advice or directives.",
+      "- Maintain factual content from the original; only add context-aware links. Keep tone consistent with the framework.",
+      "",
+      "[[CONTEXT]]",
+      ctx,
+      "[[/CONTEXT]]",
+      "",
+      "<<<INTERPRETATION>>>",
+      mo,
+      "<<<END>>>"
+    ].join("\n");
+    $('#wakingContextPrompt').value = s;
+  }
+  ['modelOutput','wakingContextOutput'].forEach(id=>{
+    document.getElementById(id)?.addEventListener('input', rebuildWCPrompt);
+  });
+  rebuildWCPrompt();
+
+  // Library legacy buttons behavior (minimal placeholders)
+  $('#libNew')?.addEventListener('click', ()=>{ const el=$('#dream')||$('#dreamText'); $('#libraryList').insertAdjacentHTML('afterbegin', `<label style="display:flex;gap:6px;align-items:center;padding:4px 0;"><input type="radio" name="dreamPick" value="untitled"> <span>untitled</span></label>`); });
+  $('#libSave')?.addEventListener('click', ()=>{}); // superseded by Save Dream below
+  $('#libRefresh')?.addEventListener('click', ()=>{}); // wired by profiles script
+  $('#libLoad')?.addEventListener('click', ()=>{});     // superseded by Load Dream below
+  $('#libDelete')?.addEventListener('click', ()=>{});
+  $('#logClear')?.addEventListener('click', ()=>{ const el=$('#storageLog'); if(el) el.value=''; });
 })();
-
-/* ====================== Prompt plumbing (existing) ====================== */
-const frameworkSelect = document.getElementById('framework');
-const dreamEl = document.getElementById('dream');
-const promptPreview = document.getElementById('promptPreview');
-const depthPrompt = document.getElementById('depthPrompt');
-
-function buildFrameworkPrompt(){
-  const fw = frameworkSelect.value;
-  const dream = dreamEl.value.trim();
-  const map = {
-    'Jungian (v1)': `You are a Jungian dream analyst. Interpret the following dream using core Jungian concepts.
-Keep the tone educational and exploratory, not therapeutic.
-Do not include greetings or questions.
-First, provide a clear **table** mapping each dream element to its Jungian interpretation.
-Then, write a short section titled **Interpretation** that weaves the elements together into one coherent, easy-to-grasp whole.
-End with a concluding insight, not a question.
-
-Dream: [${dream}]`,
-    'Freudian (v2)': `You are a Freudian dream analyst. Interpret the following dream using core Freudian concepts only.
-Keep the tone educational and exploratory, not therapeutic.
-Do not include greetings or questions.
-First, provide a clear **table** mapping each dream element to its Freudian interpretation.
-Then, write a section titled **Interpretation** that explains the dream as the disguised fulfillment of repressed wishes or conflicts.
-Use clear and concise language that makes Freudian concepts accessible without losing depth.
-Finally, add a short section titled **Concluding Insight** that summarizes the unconscious conflicts revealed.
-
-Dream: [${dream}]`,
-    'Gestalt (v3)': `You are a Gestalt dream analyst. Interpret the following dream using core Gestalt concepts.
-Keep the tone educational and exploratory, not therapeutic.
-Do not include greetings or questions.
-First, provide a clear **table** mapping each dream element to its Gestalt interpretation.
-Then, write a short section titled **Interpretation** that weaves the elements together into one coherent, easy-to-grasp whole.
-End with a concluding insight, not a question.
-
-Dream: [${dream}]`,
-    'Shamanic (v1)': `You are a Shamanic dream analyst. Interpret the following dream using core Shamanic concepts.
-Keep the tone educational and exploratory, not therapeutic.
-Do not include greetings or questions.
-First, provide a clear **table** mapping each dream element to its Shamanic interpretation.
-Then, write a short section titled **Interpretation** that weaves the elements together into one coherent, easy-to-grasp whole.
-End with a concluding insight, not a question.
-
-Dream: [${dream}]`,
-    'Cognitive/Neuropsych (v1)': `You are a Cognitive/Neuropsychological dream analyst. Interpret the following dream using core Cognitive/Neuropsych concepts.
-Keep the tone educational and exploratory, not therapeutic.
-Do not include greetings or questions.
-First, provide a clear **table** mapping each dream element to its Cognitive/Neuropsychological interpretation.
-Then, write a short section titled **Interpretation** that weaves the elements together into one coherent, easy-to-grasp whole.
-End with a concluding insight, not a question.
-
-Dream: [${dream}]`
-  };
-  return map[fw] || '';
-}
-function buildDepthPrompt(){
-  return `Rephrase the following interpretation into one of three styles. Keep factual content identical.
-
-Styles:
-1) Plain Language — minimal jargon; short sentences; everyday words.
-2) Standard — balanced clarity and depth; light terminology.
-3) Advanced (Technical) — precise, theory-accurate terminology and structure.
-
-Return only the rewritten text. Original begins after the line "-----".
------`;
-}
-function refreshPrompts(){ promptPreview.value = buildFrameworkPrompt(); depthPrompt.value = buildDepthPrompt(); }
-frameworkSelect.addEventListener('change', refreshPrompts);
-dreamEl.addEventListener('input', refreshPrompts);
-refreshPrompts();
-
-function copyText(id){ const el=document.getElementById(id); el.select(); document.execCommand('copy'); }
-document.getElementById('copyFrameworkPrompt').onclick = ()=> copyText('promptPreview');
-document.getElementById('copyPrompt').onclick = ()=> copyText('promptPreview');
-document.getElementById('copyDepth').onclick = ()=> copyText('depthPrompt');
-document.getElementById('clearDream').onclick = ()=>{ dreamEl.value=''; refreshPrompts(); };
-document.getElementById('clearDepth').onclick = ()=>{ depthPrompt.value = buildDepthPrompt(); };
-
-/* ====================== NEW: one-click depth prompt from Model Output ====================== */
-function buildDepthPromptFromOutput(style){
-  const src = (document.getElementById('modelOutput')?.value || '').trim();
-  const styleLine = {
-    plain:    'Plain Language — minimal jargon; short sentences; everyday words.',
-    standard: 'Standard — balanced clarity and depth; light terminology.',
-    advanced: 'Advanced (Technical) — precise, theory-accurate terminology and structure.'
-  }[style] || 'Standard — balanced clarity and depth; light terminology.';
-
-  return `Rewrite the following dream interpretation in ${styleLine}
-Keep factual content identical. Do not add new material. Return only the rewritten text.
-
-Original begins after the line "-----".
------
-${src || '—'}`;
-}
-document.getElementById('genDepthPlain')?.addEventListener('click', ()=>{
-  const dp = document.getElementById('depthPrompt'); if(!dp) return;
-  dp.value = buildDepthPromptFromOutput('plain');
-  const w = document.getElementById('win-depth'); if (w) { w.style.display='flex'; bringToFront(w); }
-});
-document.getElementById('genDepthStandard')?.addEventListener('click', ()=>{
-  const dp = document.getElementById('depthPrompt'); if(!dp) return;
-  dp.value = buildDepthPromptFromOutput('standard');
-  const w = document.getElementById('win-depth'); if (w) { w.style.display='flex'; bringToFront(w); }
-});
-document.getElementById('genDepthAdvanced')?.addEventListener('click', ()=>{
-  const dp = document.getElementById('depthPrompt'); if(!dp) return;
-  dp.value = buildDepthPromptFromOutput('advanced');
-  const w = document.getElementById('win-depth'); if (w) { w.style.display='flex'; bringToFront(w); }
-});
-
-/* ====================== Waking Context prompt plumbing ====================== */
-const wakingContextEl   = document.getElementById('wakingContext');
-const modelOutputEl     = document.getElementById('modelOutput');
-const wakePromptPreview = document.getElementById('wakePromptPreview');
-
-function buildWakingContextPrompt(){
-  const ctx   = (wakingContextEl?.value || '').trim();
-  const interp= (modelOutputEl?.value   || '').trim();
-
-  return `Create a waking-life–informed revision of the dream interpretation.
-
-Instructions:
-- Start from the existing interpretation provided between <<<INTERPRETATION>>> markers.
-- Integrate the waking-life context provided between [[CONTEXT]] markers wherever it clarifies motives, tensions, or symbols.
-- Keep the same overall structure (Table of elements, then **Interpretation**, then **Concluding Insight**). If no table exists, produce one.
-- Stay educational and exploratory, not therapeutic. Do not add greetings or questions. Avoid advice or directives.
-- Maintain factual content from the original; only add context-aware links. Keep tone consistent with the framework.
-
-[[CONTEXT]]
-${ctx || '—'}
-[[/CONTEXT]]
-
-<<<INTERPRETATION>>>
-${interp || '—'}
-<<<END>>>`;
-}
-function refreshWakePrompt(){ if(wakePromptPreview) wakePromptPreview.value = buildWakingContextPrompt(); }
-wakingContextEl?.addEventListener('input', refreshWakePrompt);
-modelOutputEl?.addEventListener('input', refreshWakePrompt);
-refreshWakePrompt();
-
-document.getElementById('copyWakePrompt')?.addEventListener('click', ()=> copyText('wakePromptPreview'));
-document.getElementById('clearWake')?.addEventListener('click', ()=>{
-  if(wakingContextEl) wakingContextEl.value='';
-  if(wakePromptPreview) wakePromptPreview.value = buildWakingContextPrompt();
-});
 </script>
 
 <!-- v4_4_6 change: storage adapters + library (built 2025-09-16T02:33:11.203601Z) -->
@@ -893,7 +553,10 @@ document.getElementById('clearWake')?.addEventListener('click', ()=>{
 
   // Domain helpers
   function newId(prefix){ const t = new Date().toISOString().replace(/[:.]/g,'-'); return `${prefix}-${t}`; }
-  function getCurrentDreamText(){ const el = document.getElementById('dreamText'); return el ? el.value.trim() : ''; }
+  function getCurrentDreamText(){
+    const el = document.getElementById('dreamText') || document.getElementById('dream');
+    return el ? el.value.trim() : '';
+  }
 
   async function refreshLibrary(){
     const listEl = document.getElementById('libraryList'); if(!listEl) return;
@@ -927,7 +590,8 @@ document.getElementById('clearWake')?.addEventListener('click', ()=>{
     const name = pick.value;
     const data = await Storage.get('library/dreams/'+name).catch(e=>{ LOG('load error '+e); return null; });
     if(data && data.text!==undefined) {
-      const el = document.getElementById('dreamText'); if(el) el.value = data.text;
+      const el = document.getElementById('dreamText') || document.getElementById('dream');
+      if(el) el.value = data.text;
       LOG('Loaded dream into editor: '+name);
     } else LOG('Selected file not found or invalid.');
   }
@@ -972,8 +636,20 @@ document.getElementById('clearWake')?.addEventListener('click', ()=>{
     const bRef = document.getElementById('libRefresh'); if(bRef) bRef.addEventListener('click', refreshLibrary);
     const bLoad= document.getElementById('libLoad'); if(bLoad) bLoad.addEventListener('click', libLoadSelected);
     const bDel = document.getElementById('libDelete'); if(bDel) bDel.addEventListener('click', libDeleteSelected);
-    const bClr = document.getElementById('logClear'); if(bClr) bClr.ad
-<!-- v4_4_6+ change: profiles & named dreams (built 2025-09-16T05:48:50.398587Z) -->
+    const bClr = document.getElementById('logClear'); if(bClr) bClr.addEventListener('click', ()=>{ const el=document.getElementById('storageLog'); if(el) el.value=''; });
+  }
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    await Storage.init();
+    setupSettings();
+    setupLibrary();
+    refreshLibrary();
+    LOG('Storage ready: '+(Storage.adapter && Storage.adapter.name));
+  });
+})();
+</script>
+
+<!-- v4_4_6+ change: profiles & named dreams (built inline) -->
 <script>
 (function(){
   const LOG = (msg) => {
@@ -982,55 +658,80 @@ document.getElementById('clearWake')?.addEventListener('click', ()=>{
     el.value += `[${t}] ${msg}\n`; el.scrollTop = el.scrollHeight;
   };
 
-  const slugify = (s) => (s||'').toLowerCase().trim()
-     .replace(/[^a-z0-9\s_-]/g,'')
-     .replace(/\s+/g,'-').replace(/-+/g,'-').slice(0,80) || 'untitled';
-  const qs = (s,root=document) => root.querySelector(s);
+  // tiny KV (reuse DB)
+  const idb = (() => {
+    const DB='DreamAppDB_v1', STORE='kv';
+    function open(){ return new Promise((res,rej)=>{ const r=indexedDB.open(DB,1); r.onupgradeneeded=()=>r.result.createObjectStore(STORE); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+    async function put(k,v){ const db=await open(); return new Promise((res,rej)=>{ const tx=db.transaction(STORE,'readwrite'); tx.objectStore(STORE).put(v,k); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); }); }
+    async function get(k){ const db=await open(); return new Promise((res,rej)=>{ const tx=db.transaction(STORE,'readonly'); const req=tx.objectStore(STORE).get(k); req.onsuccess=()=>res(req.result??null); req.onerror=()=>rej(req.error); }); }
+    async function del(k){ const db=await open(); return new Promise((res,rej)=>{ const tx=db.transaction(STORE,'readwrite'); tx.objectStore(STORE).delete(k); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); }); }
+    return { put, get, del };
+  })();
 
-  function currentUsername(){
-    try {
-      if (window.FolderAdapter && FolderAdapter.dirHandle) return FolderAdapter.dirHandle.name || 'Local';
-    } catch(e) {}
-    return 'Local';
-  }
-  function userBase(){
-    return `profiles/${currentUsername()}`;
-  }
+  // Profiles facade (reuses connected folder if present)
+  const ProfilesStore = {
+    adapter: null,
+    folderHandle: null,
+    async init(){
+      try { this.folderHandle = await idb.get('folderHandle'); } catch(e) {}
+      if (this.folderHandle && window.showDirectoryPicker) { this.adapter = FolderAdapter(this.folderHandle); LOG('ProfilesStore: folder'); return; }
+      if (navigator.storage && navigator.storage.getDirectory) { this.adapter = OPFSAdapter(); LOG('ProfilesStore: opfs'); try{ await navigator.storage.persist(); }catch{} return; }
+      this.adapter = IDBAdapter(); LOG('ProfilesStore: idb');
+    },
+    async put(path,data){ return this.adapter.put(path,data); },
+    async get(path){ return this.adapter.get(path); },
+    async list(path){ return this.adapter.list(path); },
+    async remove(path){ return this.adapter.remove(path); },
+    userName(){ return (this.folderHandle && this.folderHandle.name) ? this.folderHandle.name : 'Local'; },
+    userBase(){ return `profiles/${this.userName()}`; }
+  };
+
+  function segs(p){ return p.split('/').filter(Boolean); }
+  function FolderAdapter(dirHandleInit){ return {
+      name:'folder', dirHandle:dirHandleInit,
+      async ensureDir(path){ let d=this.dirHandle; for(const s of segs(path)) d=await d.getDirectoryHandle(s,{create:true}); return d; },
+      async put(path,data){ const a=segs(path), f=a.pop(); const d=await this.ensureDir(a.join('/')); const fh=await d.getFileHandle(f,{create:true}); const w=await fh.createWritable(); await w.write(typeof data==='string'?data:JSON.stringify(data,null,2)); await w.close(); LOG('Folder saved: '+path); },
+      async get(path){ const a=segs(path), f=a.pop(); let d=this.dirHandle; for(const s of a) d=await d.getDirectoryHandle(s); const fh=await d.getFileHandle(f); const t=await (await fh.getFile()).text(); try{ return JSON.parse(t); }catch{ return t; } },
+      async remove(path){ const a=segs(path), f=a.pop(); let d=this.dirHandle; for(const s of a) d=await d.getDirectoryHandle(s); await d.removeEntry(f); LOG('Folder removed: '+path); },
+      async list(path){ let d=this.dirHandle; for(const s of segs(path)) d=await d.getDirectoryHandle(s,{create:true}); const out=[]; for await(const [n] of d.entries()) out.push(n); return out; }
+  }; }
+  function OPFSAdapter(){ return {
+      name:'opfs',
+      async ensureDir(path){ let d=await navigator.storage.getDirectory(); for(const s of segs(path)) d=await d.getDirectoryHandle(s,{create:true}); return d; },
+      async put(path,data){ const a=segs(path), f=a.pop(); const d=await this.ensureDir(a.join('/')); const fh=await d.getFileHandle(f,{create:true}); const w=await fh.createWritable(); await w.write(typeof data==='string'?data:JSON.stringify(data,null,2)); await w.close(); LOG('OPFS saved: '+path); },
+      async get(path){ const a=segs(path), f=a.pop(); let d=await navigator.storage.getDirectory(); for(const s of a) d=await d.getDirectoryHandle(s); const fh=await d.getFileHandle(f); const t=await (await fh.getFile()).text(); try{ return JSON.parse(t); }catch{ return t; } },
+      async remove(path){ const a=segs(path), f=a.pop(); let d=await navigator.storage.getDirectory(); for(const s of a) d=await d.getDirectoryHandle(s); await d.removeEntry(f); LOG('OPFS removed: '+path); },
+      async list(path){ let d=await navigator.storage.getDirectory(); for(const s of segs(path)) d=await d.getDirectoryHandle(s,{create:true}); const out=[]; for await(const [n] of d.entries()) out.push(n); return out; }
+  }; }
+  function IDBAdapter(){ return {
+      name:'idb',
+      async put(path,data){ const s = typeof data==='string'?data:JSON.stringify(data,null,2); await idb.put('file:'+path, s); const man=(await idb.get('__manifest__'))||[]; if(!man.includes(path)){ man.push(path); await idb.put('__manifest__', man);} LOG('IDB saved: '+path); },
+      async get(path){ const t = await idb.get('file:'+path); if(!t) return null; try{ return JSON.parse(t); }catch{ return t; } },
+      async remove(path){ const man=(await idb.get('__manifest__'))||[]; const i=man.indexOf(path); if(i>=0) man.splice(i,1); await idb.put('__manifest__', man); await idb.del('file:'+path); LOG('IDB removed: '+path); },
+      async list(dirPath){ const man=(await idb.get('__manifest__'))||[]; const pref=dirPath.replace(/\/*$/,'')+'/'; const out=[]; for(const p of man){ if(p.indexOf(pref)===0){ const head=p.slice(pref.length).split('/')[0]; if(!out.includes(head)) out.push(head);} } return out; }
+  }; }
+
+  const qs = (s,r=document)=>r.querySelector(s);
+  const slugify = (s) => (s||'').toLowerCase().trim().replace(/[^a-z0-9\s_-]/g,'').replace(/\s+/g,'-').replace(/-+/g,'-').slice(0,80)||'untitled';
 
   function ensureUserBadge(){
-    if (!document.getElementById('userBadge')) {
-      const b = document.createElement('div'); b.id='userBadge'; b.textContent='User: '+currentUsername();
-      document.body.appendChild(b);
-    } else {
-      document.getElementById('userBadge').textContent='User: '+currentUsername();
-    }
+    if(!document.getElementById('userBadge')){ const b=document.createElement('div'); b.id='userBadge'; b.textContent='User: '+ProfilesStore.userName(); document.body.appendChild(b); }
+    else { document.getElementById('userBadge').textContent='User: '+ProfilesStore.userName(); }
   }
-
   function ensureDreamNameField(){
-    const dreamEl = document.getElementById('dreamText') || document.getElementById('dream');
-    if(!dreamEl) return;
-    if(document.getElementById('dreamName')) return;
-    const label = document.createElement('label'); label.textContent='Dream Name (not used in prompts)';
-    label.setAttribute('for','dreamName');
+    const dreamEl=document.getElementById('dreamText')||document.getElementById('dream');
+    if(!dreamEl||document.getElementById('dreamName')) return;
+    const label=document.createElement('label'); label.textContent='Dream Name (not used in prompts)'; label.setAttribute('for','dreamName');
     label.style.display='block'; label.style.margin='8px 0 4px'; label.style.fontSize='12px'; label.style.color='var(--muted, #9aa3b2)';
-    const input = document.createElement('input'); input.type='text'; input.id='dreamName';
-    input.placeholder='e.g., Warehouse Return';
-    input.style.width='100%'; input.style.background='var(--panel-2, #1b1f2a)';
-    input.style.border='1px solid var(--border, #2a2f3a)'; input.style.color='var(--text, #e6e7ea)';
+    const input=document.createElement('input'); input.type='text'; input.id='dreamName'; input.placeholder='e.g., Warehouse Return';
+    input.style.width='100%'; input.style.background='var(--panel-2, #1b1f2a)'; input.style.border='1px solid var(--border, #2a2f3a)'; input.style.color='var(--text, #e6e7ea)';
     input.style.borderRadius='8px'; input.style.padding='8px'; input.style.fontSize='14px';
-    dreamEl.parentNode.insertBefore(input, dreamEl);
-    dreamEl.parentNode.insertBefore(label, input);
+    dreamEl.parentNode.insertBefore(input, dreamEl); dreamEl.parentNode.insertBefore(label, input);
   }
-
   function ensureLibraryControls(){
-    const libWin = document.getElementById('win-library'); if(!libWin) return;
-    const body = libWin.querySelector('.win__body, .body') || libWin;
-    if(!body) return;
-    if(document.getElementById('libOutputs')) return;
-
-    const box = document.createElement('div');
-    box.id='libOutputs';
-    box.style.marginTop='10px';
+    const libWin=document.getElementById('win-library'); if(!libWin) return;
+    const body=libWin.querySelector('.win__body, .body')||libWin; if(!body||document.getElementById('libOutputs')) return;
+    const box=document.createElement('div'); box.id='libOutputs'; box.style.marginTop='10px';
     box.innerHTML = `
       <div class="win__actions" style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0;">
         <button class="btn" id="libSaveDream">Save Dream</button>
@@ -1044,33 +745,23 @@ document.getElementById('clearWake')?.addEventListener('click', ()=>{
         <button class="btn" id="libLoadDepth">Load Depth Output</button>
         <button class="btn" id="libLoadWaking">Load Waking Output</button>
       </div>`;
-    const list = document.getElementById('libraryList');
-    if(list && list.parentNode) list.parentNode.appendChild(box); else body.appendChild(box);
-
-    const $ = (sel)=>document.querySelector(sel);
-    $('#libSaveDream')?.addEventListener('click', saveDream);
-    $('#libSaveInterp')?.addEventListener('click', saveInterp);
-    $('#libSaveDepth')?.addEventListener('click', saveDepth);
-    $('#libSaveWaking')?.addEventListener('click', saveWaking);
-    $('#libLoadDream')?.addEventListener('click', () => loadArtifact('dream'));
-    $('#libLoadInterp')?.addEventListener('click', () => loadArtifact('interpretation'));
-    $('#libLoadDepth')?.addEventListener('click', () => loadArtifact('depth'));
-    $('#libLoadWaking')?.addEventListener('click', () => loadArtifact('waking'));
+    const list=document.getElementById('libraryList'); (list&&list.parentNode?list.parentNode:body).appendChild(box);
+    qs('#libSaveDream')?.addEventListener('click', saveDream);
+    qs('#libSaveInterp')?.addEventListener('click', saveInterp);
+    qs('#libSaveDepth')?.addEventListener('click', saveDepth);
+    qs('#libSaveWaking')?.addEventListener('click', saveWaking);
+    qs('#libLoadDream')?.addEventListener('click', () => loadArtifact('dream'));
+    qs('#libLoadInterp')?.addEventListener('click', () => loadArtifact('interpretation'));
+    qs('#libLoadDepth')?.addEventListener('click', () => loadArtifact('depth'));
+    qs('#libLoadWaking')?.addEventListener('click', () => loadArtifact('waking'));
   }
-
-  function selectedDreamSlug(){
-    const pick = document.querySelector('input[name="dreamPick"]:checked');
-    if(!pick) return null;
-    return pick.value.replace(/\.json$/,'');
-  }
-
+  function selectedDreamSlug(){ const pick=document.querySelector('input[name="dreamPick"]:checked'); return pick?pick.value.replace(/\.json$/,''):null; }
   async function refreshLibraryPlus(){
-    const listEl = document.getElementById('libraryList'); if(!listEl) return;
-    listEl.innerHTML = 'Loading…';
-    let names=[];
-    try { names = await Storage.list(`${userBase()}/dreams`); } catch(e) { LOG('list error '+e); }
-    names = (names||[]).map(n => n.replace(/\.json$/,'')).filter((v,i,a)=>a.indexOf(v)===i).sort();
-    if(!names.length) { listEl.innerHTML = '<em>No dreams saved yet.</em>'; return; }
+    const listEl=document.getElementById('libraryList'); if(!listEl) return;
+    listEl.innerHTML='Loading…';
+    let names=[]; try { names = await ProfilesStore.list(`${ProfilesStore.userBase()}/dreams`); } catch(e){ LOG('list error '+e); }
+    names=(names||[]).map(n=>n.replace(/\.json$/,'')).filter((v,i,a)=>a.indexOf(v)===i).sort();
+    if(!names.length){ listEl.innerHTML='<em>No dreams saved yet.</em>'; return; }
     listEl.innerHTML = names.map(name => `
       <label style="display:flex;gap:6px;align-items:center;padding:4px 0;">
         <input type="radio" name="dreamPick" value="${name}"> <span>${name}</span>
@@ -1083,85 +774,77 @@ document.getElementById('clearWake')?.addEventListener('click', ()=>{
   const wakingPayload = (name, text) => ({ name, wakingOutput: text, updatedAt: new Date().toISOString() });
 
   async function saveDream(){
-    const name = slugify((qs('#dreamName')?.value) || '');
-    const text = (qs('#dreamText')?.value || qs('#dream')?.value || '').trim();
+    const name = (document.getElementById('dreamName')?.value || '').toLowerCase().trim().replace(/[^a-z0-9\s_-]/g,'').replace(/\s+/g,'-').replace(/-+/g,'-').slice(0,80) || 'untitled';
+    const text = (document.getElementById('dreamText')?.value || document.getElementById('dream')?.value || '').trim();
     if(!name || !text) { LOG('Save Dream: need dream name and text'); return; }
-    await Storage.put(`${userBase()}/dreams/${name}/dream.json`, dreamPayload(name, text));
-    LOG('Saved Dream → '+name);
-    refreshLibraryPlus();
+    await ProfilesStore.put(`${ProfilesStore.userBase()}/dreams/${name}/dream.json`, dreamPayload(name, text));
+    LOG('Saved Dream → '+name); refreshLibraryPlus();
   }
   async function saveInterp(){
-    const name = selectedDreamSlug() || slugify((qs('#dreamName')?.value)||'');
-    const text = (qs('#modelOutput')?.value || '').trim();
+    const dn = document.getElementById('dreamName')?.value || '';
+    const name = selectedDreamSlug() || dn.toLowerCase().trim().replace(/[^a-z0-9\s_-]/g,'').replace(/\s+/g,'-').replace(/-+/g,'-').slice(0,80) || 'untitled';
+    const text = (document.getElementById('modelOutput')?.value || '').trim();
     if(!name || !text) { LOG('Save Interpretation: need dream name (select or type) and model output'); return; }
-    await Storage.put(`${userBase()}/dreams/${name}/interpretation.json`, interpPayload(name, text));
+    await ProfilesStore.put(`${ProfilesStore.userBase()}/dreams/${name}/interpretation.json`, interpPayload(name, text));
     LOG('Saved Interpretation → '+name);
   }
   async function saveDepth(){
-    const name = selectedDreamSlug() || slugify((qs('#dreamName')?.value)||'');
-    const text = (qs('#depthOutput')?.value || '').trim();
+    const dn = document.getElementById('dreamName')?.value || '';
+    const name = selectedDreamSlug() || dn.toLowerCase().trim().replace(/[^a-z0-9\s_-]/g,'').replace(/\s+/g,'-').replace(/-+/g,'-').slice(0,80) || 'untitled';
+    const text = (document.getElementById('depthOutput')?.value || '').trim();
     if(!name || !text) { LOG('Save Depth: need dream name and depth output'); return; }
-    await Storage.put(`${userBase()}/dreams/${name}/depth.json`, depthPayload(name, text));
+    await ProfilesStore.put(`${ProfilesStore.userBase()}/dreams/${name}/depth.json`, depthPayload(name, text));
     LOG('Saved Depth Output → '+name);
   }
   async function saveWaking(){
-    const name = selectedDreamSlug() || slugify((qs('#dreamName')?.value)||'');
-    const text = (qs('#wakingContextOutput')?.value || '').trim();
+    const dn = document.getElementById('dreamName')?.value || '';
+    const name = selectedDreamSlug() || dn.toLowerCase().trim().replace(/[^a-z0-9\s_-]/g,'').replace(/\s+/g,'-').replace(/-+/g,'-').slice(0,80) || 'untitled';
+    const text = (document.getElementById('wakingContextOutput')?.value || '').trim();
     if(!name || !text) { LOG('Save Waking: need dream name and waking output'); return; }
-    await Storage.put(`${userBase()}/dreams/${name}/waking.json`, wakingPayload(name, text));
+    await ProfilesStore.put(`${ProfilesStore.userBase()}/dreams/${name}/waking.json`, wakingPayload(name, text));
     LOG('Saved Waking Output → '+name);
   }
 
   async function loadArtifact(kind){
     const name = selectedDreamSlug();
     if(!name) { LOG('Load '+kind+': select a dream first'); return; }
-    const path = `${userBase()}/dreams/${name}/${kind==='dream'?'dream':kind}.json`;
-    const data = await Storage.get(path).catch(e=>{ LOG('Load error '+e); return null; });
+    const path = `${ProfilesStore.userBase()}/dreams/${name}/${kind==='dream'?'dream':kind}.json`;
+    const data = await ProfilesStore.get(path).catch(e=>{ LOG('Load error '+e); return null; });
     if(!data) { LOG('Nothing loaded'); return; }
-    if(kind==='dream') {
+    if(kind==='dream'){
       const el = document.getElementById('dreamText') || document.getElementById('dream'); if(el) el.value = data.text||'';
       const dn = document.getElementById('dreamName'); if(dn) dn.value = data.name || name;
-    } else if(kind==='interpretation') {
+    } else if(kind==='interpretation'){
       const el = document.getElementById('modelOutput'); if(el) el.value = data.interpretation||'';
-    } else if(kind==='depth') {
+    } else if(kind==='depth'){
       const el = document.getElementById('depthOutput'); if(el) el.value = data.depthOutput||'';
-    } else if(kind==='waking') {
+    } else if(kind==='waking'){
       const el = document.getElementById('wakingContextOutput'); if(el) el.value = data.wakingOutput||'';
     }
     LOG('Loaded '+kind+' ← '+name);
   }
 
   function wireRefresh(){
-    const b = document.getElementById('libRefresh');
+    const b=document.getElementById('libRefresh');
     if(b && !b.dataset.plus){ b.dataset.plus='1'; b.addEventListener('click', refreshLibraryPlus); }
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', async () => {
+    await ProfilesStore.init();
     ensureUserBadge();
     ensureDreamNameField();
     ensureLibraryControls();
     wireRefresh();
     refreshLibraryPlus();
 
-    const settingsWin = document.getElementById('win-settings');
-    if(settingsWin){
-      settingsWin.addEventListener('click', () => setTimeout(()=>{ ensureUserBadge(); refreshLibraryPlus(); }, 250));
-    }
-    setTimeout(ensureUserBadge, 1000);
+    const settingsWin=document.getElementById('win-settings');
+    if(settingsWin){ settingsWin.addEventListener('click', () => setTimeout(()=>{ ensureUserBadge(); refreshLibraryPlus(); }, 250)); }
   });
 })();
 </script>
-dEventListener('click', ()=>{ const el=document.getElementById('storageLog'); if(el) el.value=''; });
-  }
 
-  document.addEventListener('DOMContentLoaded', async () => {
-    await Storage.init();
-    setupSettings();
-    setupLibrary();
-    refreshLibrary();
-    LOG('Storage ready: '+Storage.adapter.name);
-  });
-})();
-</script>
+<!-- user badge node -->
+<div id="userBadge">User: Local</div>
+
 </body>
 </html>
