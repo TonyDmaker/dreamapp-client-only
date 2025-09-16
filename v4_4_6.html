@@ -165,7 +165,7 @@
             <span class="handle">⋮⋮</span><span class="btn-label">Waking Context Output</span><span class="dot"></span>
           </button>
         
-          <!-- v4_4_6 fix: add menu items -->
+          <!-- v4_4_6 change: add menu items -->
           <button draggable="true" data-target="win-library">
             <span class="handle">⋮⋮</span><span class="btn-label">Library</span><span class="dot"></span>
           </button>
@@ -342,7 +342,7 @@
         <div class="resizer r-se"></div><div class="resizer r-sw"></div>
       </section>
     
-        <!-- v4_4_6 fix: Library window -->
+        <!-- v4_4_6 change: Library window -->
         <section class="win" id="win-library" style="left:1080px; top:24px; width:520px; height:420px;">
           <header class="win__head">
             <div class="win__title">Library</div>
@@ -367,7 +367,7 @@
           <div class="resizer r-se"></div><div class="resizer r-sw"></div>
         </section>
 
-        <!-- v4_4_6 fix: Storage Log window -->
+        <!-- v4_4_6 change: Storage Log window -->
         <section class="win" id="win-storage-log" style="left:1080px; top:460px; width:520px; height:320px;">
           <header class="win__head">
             <div class="win__title">Storage Log</div>
@@ -385,7 +385,7 @@
           <div class="resizer r-se"></div><div class="resizer r-sw"></div>
         </section>
 
-        <!-- v4_4_6 fix: Settings window -->
+        <!-- v4_4_6 change: Settings window -->
         <section class="win" id="win-settings" style="left:1080px; top:800px; width:520px; height:280px;">
           <header class="win__head">
             <div class="win__title">Settings</div>
@@ -796,7 +796,7 @@ document.getElementById('clearWake')?.addEventListener('click', ()=>{
 });
 </script>
 
-<!-- v4_4_6 change: storage adapters + library (built 2025-09-16T02:33:11.203601Z) -->
+<!-- v4_4_6 change: storage adapters + library (built 2025-09-16T03:46:15.781057Z) -->
 <script>
 (function(){
   const LOG = (msg) => {
@@ -966,9 +966,9 @@ document.getElementById('clearWake')?.addEventListener('click', ()=>{
   // Domain helpers
   function newId(prefix){ const t = new Date().toISOString().replace(/[:.]/g,'-'); return `${prefix}-${t}`; }
   function getCurrentDreamText(){
-  const el = document.getElementById('dreamText') || document.getElementById('dream');
-  return el ? el.value.trim() : '';
-}
+    const el = document.getElementById('dreamText') || document.getElementById('dream');
+    return el ? el.value.trim() : '';
+  }
 
   async function refreshLibrary(){
     const listEl = document.getElementById('libraryList'); if(!listEl) return;
@@ -1002,7 +1002,8 @@ document.getElementById('clearWake')?.addEventListener('click', ()=>{
     const name = pick.value;
     const data = await Storage.get('library/dreams/'+name).catch(e=>{ LOG('load error '+e); return null; });
     if(data && data.text!==undefined) {
-      const el = document.getElementById('dreamText'); if(el) el.value = data.text;
+      const el = document.getElementById('dreamText') || document.getElementById('dream');
+      if(el) el.value = data.text;
       LOG('Loaded dream into editor: '+name);
     } else LOG('Selected file not found or invalid.');
   }
@@ -1055,7 +1056,7 @@ document.getElementById('clearWake')?.addEventListener('click', ()=>{
     setupSettings();
     setupLibrary();
     refreshLibrary();
-    LOG('Storage ready: '+Storage.adapter.name);
+    LOG('Storage ready: '+(Storage.adapter && Storage.adapter.name));
   });
 })();
 </script>
