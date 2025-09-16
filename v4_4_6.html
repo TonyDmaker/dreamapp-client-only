@@ -164,7 +164,18 @@
           <button draggable="true" data-target="win-wakeout">
             <span class="handle">⋮⋮</span><span class="btn-label">Waking Context Output</span><span class="dot"></span>
           </button>
-        </div>
+        
+          <!-- v4_4_6 fix: add menu items -->
+          <button draggable="true" data-target="win-library">
+            <span class="handle">⋮⋮</span><span class="btn-label">Library</span><span class="dot"></span>
+          </button>
+          <button draggable="true" data-target="win-storage-log">
+            <span class="handle">⋮⋮</span><span class="btn-label">Storage Log</span><span class="dot"></span>
+          </button>
+          <button draggable="true" data-target="win-settings">
+            <span class="handle">⋮⋮</span><span class="btn-label">Settings</span><span class="dot"></span>
+          </button>
+</div>
 
         <div class="tip">Tip: drag window headers to move; drag any edge/corner to resize.</div>
 
@@ -330,7 +341,79 @@
         <div class="resizer r-ne"></div><div class="resizer r-nw"></div>
         <div class="resizer r-se"></div><div class="resizer r-sw"></div>
       </section>
-    </main>
+    
+        <!-- v4_4_6 fix: Library window -->
+        <section class="win" id="win-library" style="left:1080px; top:24px; width:520px; height:420px;">
+          <header class="win__head">
+            <div class="win__title">Library</div>
+            <button class="win__close" data-close="win-library">✕</button>
+          </header>
+          <div class="win__body">
+            <div class="win__actions" style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+              <button class="btn" id="libNew">New From Current</button>
+              <button class="btn" id="libSave">Save Current</button>
+              <button class="btn" id="libRefresh">Refresh</button>
+            </div>
+            <label>Saved Dreams</label>
+            <div id="libraryList" style="background:var(--panel);border:1px solid var(--border);border-radius:10px; padding:6px; height:220px; overflow:auto;"></div>
+            <div class="win__actions" style="display:flex;gap:8px;margin-top:8px;">
+              <button class="btn" id="libLoad">Load Selected</button>
+              <button class="btn" id="libDelete">Delete Selected</button>
+            </div>
+          </div>
+          <div class="resizer r-n"></div><div class="resizer r-s"></div>
+          <div class="resizer r-e"></div><div class="resizer r-w"></div>
+          <div class="resizer r-ne"></div><div class="resizer r-nw"></div>
+          <div class="resizer r-se"></div><div class="resizer r-sw"></div>
+        </section>
+
+        <!-- v4_4_6 fix: Storage Log window -->
+        <section class="win" id="win-storage-log" style="left:1080px; top:460px; width:520px; height:320px;">
+          <header class="win__head">
+            <div class="win__title">Storage Log</div>
+            <button class="win__close" data-close="win-storage-log">✕</button>
+          </header>
+          <div class="win__body">
+            <textarea id="storageLog" placeholder="Log will appear here…" readonly style="min-height:220px;"></textarea>
+            <div class="win__actions" style="display:flex;gap:8px;margin-top:8px;">
+              <button class="btn" id="logClear">Clear Log</button>
+            </div>
+          </div>
+          <div class="resizer r-n"></div><div class="resizer r-s"></div>
+          <div class="resizer r-e"></div><div class="resizer r-w"></div>
+          <div class="resizer r-ne"></div><div class="resizer r-nw"></div>
+          <div class="resizer r-se"></div><div class="resizer r-sw"></div>
+        </section>
+
+        <!-- v4_4_6 fix: Settings window -->
+        <section class="win" id="win-settings" style="left:1080px; top:800px; width:520px; height:280px;">
+          <header class="win__head">
+            <div class="win__title">Settings</div>
+            <button class="win__close" data-close="win-settings">✕</button>
+          </header>
+          <div class="win__body">
+            <label>Storage Mode</label>
+            <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;">
+              <label><input type="radio" name="storageMode" value="auto" checked> Auto (OPFS if available, else IndexedDB)</label>
+              <label><input type="radio" name="storageMode" value="folder"> Connected Folder (Directory Picker)</label>
+              <label><input type="radio" name="storageMode" value="idb"> IndexedDB (fallback)</label>
+            </div>
+            <div class="win__actions" style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn" id="connectFolder">Connect Folder…</button>
+              <button class="btn" id="revokeFolder">Disconnect</button>
+              <button class="btn" id="openFolder" title="Open a folder just to inspect">Open Folder</button>
+            </div>
+            <div style="margin-top:8px;">
+              <div class="note">Status:</div>
+              <div id="storageStatus" class="note">Initializing…</div>
+            </div>
+          </div>
+          <div class="resizer r-n"></div><div class="resizer r-s"></div>
+          <div class="resizer r-e"></div><div class="resizer r-w"></div>
+          <div class="resizer r-ne"></div><div class="resizer r-nw"></div>
+          <div class="resizer r-se"></div><div class="resizer r-sw"></div>
+        </section>
+</main>
   </div>
 
 <script>
@@ -882,7 +965,10 @@ document.getElementById('clearWake')?.addEventListener('click', ()=>{
 
   // Domain helpers
   function newId(prefix){ const t = new Date().toISOString().replace(/[:.]/g,'-'); return `${prefix}-${t}`; }
-  function getCurrentDreamText(){ const el = document.getElementById('dreamText'); return el ? el.value.trim() : ''; }
+  function getCurrentDreamText(){
+  const el = document.getElementById('dreamText') || document.getElementById('dream');
+  return el ? el.value.trim() : '';
+}
 
   async function refreshLibrary(){
     const listEl = document.getElementById('libraryList'); if(!listEl) return;
