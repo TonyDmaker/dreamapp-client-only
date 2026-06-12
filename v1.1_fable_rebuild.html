@@ -1,0 +1,1604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DreamApp — Fable rebuild v1</title>
+<style>
+:root{
+  --bg:#0f1220; --panel:#161a2b; --panel2:#1b2138; --ink:#e9efff; --muted:#93a0c2;
+  --accent:#7cc6ff; --accent-2:#444dd8; --accent-ink:#06233a; --border:#26324a; --danger:#ff7c8a; --ok:#7cffb0; --warn:#ffd27c;
+  --radius:14px; --radius-s:9px;
+  --shadow:0 10px 30px rgba(0,0,0,.35);
+  --font:ui-sans-serif,system-ui,"Segoe UI",Roboto,Inter,Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box; scrollbar-width:thin; scrollbar-color:#2a3554 transparent;}
+html,body{height:100%;}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 var(--font);overflow:hidden;}
+#app{display:flex;height:100vh;width:100vw;}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-radius:4px;}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-thumb{background:#2a3554;border-radius:8px;border:2px solid var(--panel);}
+::-webkit-scrollbar-track{background:transparent;}
+
+/* ---------- controls ---------- */
+button{font:inherit;color:var(--ink);background:#1a2042;border:1px solid var(--border);border-radius:var(--radius-s);padding:6px 10px;cursor:pointer;}
+button:hover{border-color:var(--accent);}
+button.primary{background:#1a2a4f;color:var(--ink);border-color:#2b3a6b;font-weight:600;}
+button.danger{border-color:var(--danger);color:var(--danger);background:transparent;}
+button:disabled{opacity:.45;cursor:not-allowed;}
+button.icon{padding:3px 8px;background:transparent;border-color:transparent;line-height:1.2;}
+button.icon:hover{border-color:var(--border);background:var(--panel2);}
+input[type=text],input[type=search],select,textarea{font:inherit;color:var(--ink);background:#0f1635;border:1px solid var(--border);border-radius:var(--radius-s);padding:7px 9px;width:100%;}
+textarea{resize:none;line-height:1.5;}
+textarea.code{font-family:var(--mono);font-size:12.5px;}
+textarea[readonly]{color:var(--muted);}
+label.fld{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.row .grow{flex:1;}
+.right{margin-left:auto;}
+.hint{font-size:12px;color:var(--muted);}
+.badge{font-size:11px;border:1px solid var(--border);border-radius:999px;padding:1px 8px;color:var(--muted);white-space:nowrap;}
+.badge.warn{color:var(--warn);border-color:#7a6233;}
+.badge.ok{color:var(--ok);border-color:#2c6b4a;}
+
+/* ---------- sidebar ---------- */
+#sidebar{position:relative;flex:0 0 auto;width:260px;background:linear-gradient(180deg,#0f1326 0%,#0c0f1f 100%);border-right:1px solid var(--border);display:flex;flex-direction:column;user-select:none;z-index:2;transition:width .18s ease,margin-right .18s ease;}
+#sidebar.resizing{transition:none;}
+#sidebar.peek{box-shadow:8px 0 24px rgba(0,0,0,.5);}
+#sb-head{display:flex;align-items:center;gap:8px;padding:10px;border-bottom:1px solid var(--border);min-height:46px;}
+#sb-title{font-weight:700;letter-spacing:.4px;white-space:nowrap;overflow:hidden;}
+#sb-title small{color:var(--muted);font-weight:500;}
+#sb-toggle{margin-left:auto;}
+#sidebar.rail #sb-toggle{margin-left:0;}
+#sidebar.rail #sb-head{justify-content:center;}
+#sb-list{flex:1;overflow-y:auto;overflow-x:hidden;padding:8px;display:flex;flex-direction:column;gap:4px;}
+.sb-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-s);cursor:pointer;border:1px solid transparent;white-space:nowrap;}
+.sb-item:hover{background:var(--panel2);}
+.sb-item .ico{width:20px;text-align:center;flex:0 0 20px;}
+.sb-item .lbl{flex:1;overflow:hidden;text-overflow:ellipsis;}
+.sb-item .dot{width:8px;height:8px;border-radius:50%;background:transparent;border:1px solid var(--border);flex:0 0 8px;}
+.sb-item.on .dot{background:var(--accent);border-color:var(--accent);box-shadow:0 0 8px rgba(124,198,255,.7);}
+.sb-item.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;}
+.sb-item.dragging{opacity:.4;}
+.sb-item.drop-before{box-shadow:0 -2px 0 var(--accent);}
+.sb-item.drop-after{box-shadow:0 2px 0 var(--accent);}
+#sidebar.rail .sb-item{justify-content:center;padding:10px 0;}
+#sidebar.rail .lbl,#sidebar.rail .dot,#sidebar.rail .ft-text{display:none;}
+#sb-foot{border-top:1px solid var(--border);padding:10px;display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--muted);}
+#sb-dream{color:var(--ink);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#sb-status{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#sb-zoomctl{display:flex;gap:6px;align-items:center;}
+#sb-zoomctl button{padding:4px 8px;}
+#sb-zlvl{min-width:50px;}
+#sb-resize{position:absolute;top:0;right:-3px;width:6px;height:100%;cursor:col-resize;z-index:5;}
+#sb-resize:hover{background:rgba(124,198,255,.25);}
+
+/* ---------- canvas ---------- */
+#viewport{position:relative;z-index:1;flex:1;overflow:hidden;cursor:default;
+  background:radial-gradient(1200px 800px at 70% -10%, rgba(124,198,255,.06), transparent 60%), var(--bg);}
+#viewport.pan-ready{cursor:grab;}
+#viewport.panning{cursor:grabbing !important;}
+#canvas{position:absolute;left:0;top:0;width:6000px;height:6000px;transform:translate(0,0);transform-origin:0 0;
+  background-image:radial-gradient(rgba(124,198,255,.10) 1px, transparent 1.4px);
+  background-size:32px 32px;}
+.sc{position:absolute;z-index:100000;pointer-events:none;}
+#hscroll{left:4px;right:14px;bottom:3px;height:8px;}
+#vscroll{top:4px;bottom:14px;right:3px;width:8px;}
+.sc-thumb{position:absolute;pointer-events:auto;background:rgba(124,198,255,.28);border:1px solid rgba(124,198,255,.4);border-radius:6px;}
+.sc-thumb:hover,.sc-thumb.drag{background:rgba(124,198,255,.55);}
+#hscroll .sc-thumb{top:0;height:100%;}
+#vscroll .sc-thumb{left:0;width:100%;}
+
+/* ---------- windows ---------- */
+.win{position:absolute;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);min-width:320px;min-height:160px;overflow:hidden;}
+.win.focused{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset, var(--shadow);}
+.win-head{display:flex;align-items:center;gap:8px;padding:8px 10px;background:linear-gradient(var(--panel2),var(--panel));border-bottom:1px solid var(--border);cursor:grab;user-select:none;flex:0 0 auto;}
+.win-head:active{cursor:grabbing;}
+.win-head .ttl{font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.win-body{flex:1;min-height:0;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:10px;}
+.win-body > *{flex:0 0 auto;}
+.win-body > .fill, .fld.fill{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:6px;}
+.fill textarea, .fill .scroller{flex:1 1 auto;min-height:0;}
+.scroller{overflow:auto;border:1px solid var(--border);border-radius:var(--radius-s);}
+.empty{flex:1;display:flex;align-items:center;justify-content:center;color:var(--muted);text-align:center;padding:20px;line-height:1.6;}
+.rs{position:absolute;z-index:3;}
+.rs.n{top:-3px;left:8px;right:8px;height:6px;cursor:ns-resize;}
+.rs.s{bottom:-3px;left:8px;right:8px;height:6px;cursor:ns-resize;}
+.rs.e{right:-3px;top:8px;bottom:8px;width:6px;cursor:ew-resize;}
+.rs.w{left:-3px;top:8px;bottom:8px;width:6px;cursor:ew-resize;}
+.rs.ne{top:-3px;right:-3px;width:12px;height:12px;cursor:nesw-resize;}
+.rs.nw{top:-3px;left:-3px;width:12px;height:12px;cursor:nwse-resize;}
+.rs.se{bottom:-3px;right:-3px;width:12px;height:12px;cursor:nwse-resize;}
+.rs.sw{bottom:-3px;left:-3px;width:12px;height:12px;cursor:nesw-resize;}
+
+/* ---------- library ---------- */
+.lib-list{flex:1;min-height:0;overflow:auto;border:1px solid var(--border);border-radius:var(--radius-s);display:flex;flex-direction:column;}
+.lib-row{display:flex;gap:10px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--border);cursor:pointer;}
+.lib-row:last-child{border-bottom:none;}
+.lib-row:hover{background:var(--panel2);}
+.lib-row.sel{background:rgba(124,198,255,.12);}
+.lib-row.active-dream .nm::after{content:" •";color:var(--accent);}
+.lib-row .nm{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.lib-row .meta{font-size:11.5px;color:var(--muted);white-space:nowrap;}
+
+/* ---------- compare ---------- */
+.cmp-pick{max-height:130px;overflow:auto;border:1px solid var(--border);border-radius:var(--radius-s);padding:6px;display:flex;flex-direction:column;gap:2px;}
+.cmp-pick-row{display:flex;align-items:center;gap:8px;padding:3px 4px;border-radius:6px;font-size:12.5px;}
+.cmp-pick-row:hover{background:var(--panel2);}
+.cmp-pick-row label{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;}
+.cmp-pick-row input{width:auto;}
+.cmp-wrap{flex:1;min-height:0;overflow:auto;border:1px solid var(--border);border-radius:var(--radius-s);display:flex;flex-direction:column;}
+table.cmp{border-collapse:collapse;width:100%;font-size:13px;}
+table.cmp th,table.cmp td{border-bottom:1px solid var(--border);border-right:1px solid var(--border);padding:8px;vertical-align:top;text-align:left;}
+table.cmp th{position:sticky;top:0;background:var(--panel2);z-index:1;}
+table.cmp td:last-child,table.cmp th:last-child{border-right:none;}
+.cmp-cell{max-height:260px;overflow:auto;min-width:200px;}
+.cmp-cell pre{margin:0;white-space:pre-wrap;font-family:var(--mono);font-size:12px;}
+table.md{border-collapse:collapse;width:100%;}
+table.md th,table.md td{border:1px solid var(--border);padding:4px 6px;font-size:12.5px;vertical-align:top;}
+table.md th{background:var(--panel2);}
+
+/* ---------- log & toasts ---------- */
+.log-list{flex:1;min-height:0;overflow:auto;font-family:var(--mono);font-size:12px;display:flex;flex-direction:column;gap:2px;border:1px solid var(--border);border-radius:var(--radius-s);padding:6px;}
+.log-line{padding:1px 4px;border-radius:4px;}
+.log-line .t{color:var(--muted);}
+.log-line.err{color:var(--danger);}
+.log-line.ok{color:var(--ok);}
+#toasts{position:fixed;right:14px;bottom:14px;display:flex;flex-direction:column;gap:8px;z-index:9999;}
+.toast{background:var(--panel2);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:var(--radius-s);padding:8px 12px;box-shadow:var(--shadow);animation:tin .18s ease-out;max-width:340px;}
+.toast.err{border-left-color:var(--danger);}
+@keyframes tin{from{transform:translateY(8px);opacity:0;}to{transform:none;opacity:1;}}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar">
+    <div id="sb-head">
+      <div id="sb-title">Fable <small>rebuild v1.1</small></div>
+      <button id="sb-toggle" class="icon" title="Collapse sidebar">◀</button>
+    </div>
+    <nav id="sb-list"></nav>
+    <div id="sb-foot">
+      <div id="sb-dream" class="ft-text">No dream open</div>
+      <div id="sb-status" class="ft-text">—</div>
+      <div class="row"><button id="sb-fit" title="Fit all visible windows into view"><span>⛶</span><span class="ft-text"> Fit all</span></button><span id="sb-zoomctl" class="ft-text"><button id="sb-zout" title="Zoom out">−</button><button id="sb-zlvl" title="Reset zoom to 100%">100%</button><button id="sb-zin" title="Zoom in">+</button></span></div>
+    </div>
+    <div id="sb-resize" title="Drag to resize sidebar"></div>
+  </aside>
+  <main id="viewport"><div id="canvas"></div><div id="hscroll" class="sc"><div class="sc-thumb"></div></div><div id="vscroll" class="sc"><div class="sc-thumb"></div></div></main>
+</div>
+<div id="toasts"></div>
+<script>
+"use strict";
+/* ================= utils ================= */
+const $ = (s, root) => (root || document).querySelector(s);
+const el = (tag, attrs, ...kids) => {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k === 'class') n.className = v;
+    else if (k === 'text') n.textContent = v;
+    else if (k.indexOf('on') === 0) n.addEventListener(k.slice(2), v);
+    else n.setAttribute(k, v === true ? '' : v);
+  }
+  for (const k of kids) { if (k == null) continue; n.append(k.nodeType ? k : document.createTextNode(k)); }
+  return n;
+};
+const uid = p => p + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+const nowIso = () => new Date().toISOString();
+const fmtTime = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); };
+
+/* ================= bus / toast / Log ================= */
+const Bus = (() => {
+  const m = {};
+  return {
+    on: (ev, fn) => { (m[ev] = m[ev] || []).push(fn); },
+    emit: (ev, ...a) => { (m[ev] || []).forEach(f => { try { f(...a); } catch (err) { console.error(ev, err); } }); }
+  };
+})();
+
+function Toast(msg, kind) {
+  const t = el('div', { class: 'toast' + (kind ? ' ' + kind : ''), text: msg });
+  $('#toasts').append(t);
+  setTimeout(() => { t.style.transition = 'opacity .3s'; t.style.opacity = '0'; setTimeout(() => t.remove(), 320); }, 2400);
+}
+
+const Log = (() => {
+  const entries = [];
+  let mount = null;
+  function render() {
+    if (!mount) return;
+    mount.innerHTML = '';
+    entries.forEach(e => {
+      mount.append(el('div', { class: 'log-line' + (e.kind ? ' ' + e.kind : '') },
+        el('span', { class: 't', text: e.t.toLocaleTimeString() + '  ' }), e.msg));
+    });
+    mount.scrollTop = mount.scrollHeight;
+  }
+  return {
+    add(msg, kind) { entries.push({ t: new Date(), msg: String(msg), kind: kind || '' }); if (entries.length > 500) entries.shift(); render(); },
+    attach(elm) { mount = elm; render(); },
+    clear() { entries.length = 0; render(); }
+  };
+})();
+
+/* ================= Store ================= */
+const Store = (() => {
+  const PREFS_KEY = 'fable_v1_prefs';
+  const DB_NAME = 'FableDB_v1', STORE = 'dreams';
+  let db = null;
+  let dream = null; // active dream
+
+  function loadPrefs() {
+    const def = { sidebar: { width: 260, expanded: 260, collapsed: false, order: null }, pan: null, zoom: 1, windows: {}, activeDreamId: null, topZ: 30, framework: 'jungian', lastModel: '', firstRunDone: false };
+    try {
+      const raw = localStorage.getItem(PREFS_KEY);
+      if (!raw) return def;
+      const p = JSON.parse(raw);
+      const out = Object.assign({}, def, p);
+      out.sidebar = Object.assign({}, def.sidebar, p.sidebar || {});
+      out.windows = p.windows || {};
+      return out;
+    } catch (e) { return def; }
+  }
+  const prefs = loadPrefs();
+  const savePrefsNow = () => { try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch (e) {} };
+  const savePrefs = debounce(savePrefsNow, 300);
+
+  function open() {
+    return new Promise((res, rej) => {
+      const rq = indexedDB.open(DB_NAME, 1);
+      rq.onupgradeneeded = () => { rq.result.createObjectStore(STORE, { keyPath: 'id' }); };
+      rq.onsuccess = () => { db = rq.result; res(db); };
+      rq.onerror = () => rej(rq.error);
+    });
+  }
+  const tx = mode => db.transaction(STORE, mode).objectStore(STORE);
+  const idb = {
+    get: id => new Promise((res, rej) => { const r = tx('readonly').get(id); r.onsuccess = () => res(r.result || null); r.onerror = () => rej(r.error); }),
+    put: obj => new Promise((res, rej) => { const r = tx('readwrite').put(obj); r.onsuccess = () => res(true); r.onerror = () => rej(r.error); }),
+    del: id => new Promise((res, rej) => { const r = tx('readwrite').delete(id); r.onsuccess = () => res(true); r.onerror = () => rej(r.error); }),
+    all: () => new Promise((res, rej) => { const r = tx('readonly').getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => rej(r.error); }),
+    clear: () => new Promise((res, rej) => { const r = tx('readwrite').clear(); r.onsuccess = () => res(true); r.onerror = () => rej(r.error); })
+  };
+
+  const saveDream = debounce(async () => {
+    if (!dream || !db) return;
+    try { await idb.put(dream); Bus.emit('saved'); Log.add('saved "' + dream.name + '"', 'ok'); }
+    catch (e) { Log.add('save failed: ' + e, 'err'); Toast('Save failed', 'err'); }
+  }, 500);
+
+  function blankDream(name) {
+    const t = nowIso();
+    return { id: uid('d'), name: name || 'Untitled dream', createdAt: t, updatedAt: t, tags: [], dreamText: '', wakingContext: '', notes: '', runs: [] };
+  }
+
+  function touch() { if (!dream) return; dream.updatedAt = nowIso(); Bus.emit('saving'); saveDream(); }
+
+  function setActive(d) { dream = d; prefs.activeDreamId = d ? d.id : null; savePrefs(); Bus.emit('dream-changed'); }
+
+  async function createDream(name) {
+    const d = blankDream(name);
+    await idb.put(d);
+    setActive(d);
+    Log.add('created dream "' + d.name + '"');
+    Bus.emit('library-changed');
+    return d;
+  }
+  async function openDream(id) {
+    const d = await idb.get(id);
+    if (!d) { Toast('Dream not found', 'err'); return null; }
+    setActive(d);
+    Log.add('opened "' + d.name + '"');
+    Bus.emit('library-changed');
+    return d;
+  }
+  async function deleteDream(id) {
+    await idb.del(id);
+    Log.add('deleted dream ' + id);
+    if (dream && dream.id === id) { dream = null; prefs.activeDreamId = null; savePrefs(); Bus.emit('dream-changed'); }
+    Bus.emit('library-changed');
+  }
+  async function renameDream(id, name) {
+    const d = (dream && dream.id === id) ? dream : await idb.get(id);
+    if (!d) return;
+    d.name = name; d.updatedAt = nowIso();
+    await idb.put(d);
+    if (dream && dream.id === id) Bus.emit('dream-changed');
+    Bus.emit('library-changed');
+    Log.add('renamed to "' + name + '"');
+  }
+
+  function addRun(run) { if (!dream) return; dream.runs.push(run); touch(); Bus.emit('runs-changed'); }
+  function deleteRun(runId) {
+    if (!dream) return;
+    const i = dream.runs.findIndex(r => r.id === runId);
+    if (i >= 0) { dream.runs.splice(i, 1); touch(); Bus.emit('runs-changed'); Log.add('run deleted'); }
+  }
+
+  async function listDreams() {
+    if (!db) return [];
+    const all = await idb.all();
+    all.sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+    return all;
+  }
+
+  async function importDreams(arr) {
+    let added = 0, updated = 0, skipped = 0;
+    for (const d of arr) {
+      if (!d || !d.id) { skipped++; continue; }
+      const ex = await idb.get(d.id);
+      if (!ex) { await idb.put(d); added++; }
+      else if (String(d.updatedAt || '') > String(ex.updatedAt || '')) { await idb.put(d); updated++; }
+      else skipped++;
+    }
+    if (dream) { const fresh = await idb.get(dream.id); if (fresh) { dream = fresh; Bus.emit('dream-changed'); } }
+    Bus.emit('library-changed');
+    return { added, updated, skipped };
+  }
+
+  async function wipeAll() {
+    await idb.clear();
+    dream = null; prefs.activeDreamId = null; savePrefsNow();
+    Bus.emit('dream-changed'); Bus.emit('library-changed');
+    Log.add('database wiped', 'err');
+  }
+
+  async function init() {
+    await open();
+    if (prefs.activeDreamId) dream = await idb.get(prefs.activeDreamId);
+    if (!dream && !prefs.firstRunDone) {
+      dream = blankDream('First dream');
+      await idb.put(dream);
+      prefs.activeDreamId = dream.id;
+    }
+    prefs.firstRunDone = true;
+    savePrefsNow();
+  }
+
+  return { prefs, savePrefs, savePrefsNow, init, get dream() { return dream; }, touch, createDream, openDream, deleteDream, renameDream, addRun, deleteRun, listDreams, importDreams, wipeAll };
+})();
+/* ================= Canvas ================= */
+const Canvas = (() => {
+  const SIZE = 6000, EDGE = 40, SPEED = 12, ZMIN = 0.4, ZMAX = 1.5;
+  const vp = $('#viewport'), cv = $('#canvas');
+  const zoomLbl = $('#sb-zlvl');
+  let zoomLblTxt = '';
+  let pan = Store.prefs.pan ? { x: Store.prefs.pan.x, y: Store.prefs.pan.y } : { x: 0, y: 0 };
+  let zoom = clamp(Number(Store.prefs.zoom) || 1, ZMIN, ZMAX);
+  let spaceHeld = false;
+  let panDrag = null;
+  const auto = { active: false, cx: 0, cy: 0, raf: 0, onPan: null };
+
+  function clampPan(p) {
+    const r = vp.getBoundingClientRect();
+    const minX = Math.min(0, r.width - SIZE * zoom), minY = Math.min(0, r.height - SIZE * zoom);
+    return { x: clamp(p.x, minX, 0), y: clamp(p.y, minY, 0) };
+  }
+  function apply() {
+    cv.style.transform = 'translate(' + pan.x + 'px,' + pan.y + 'px) scale(' + zoom + ')';
+    syncBars();
+    const t = Math.round(zoom * 100) + '%';
+    if (zoomLbl && t !== zoomLblTxt) { zoomLblTxt = t; zoomLbl.textContent = t; }
+  }
+  const persist = debounce(() => { Store.prefs.pan = { x: pan.x, y: pan.y }; Store.prefs.zoom = zoom; Store.savePrefs(); }, 300);
+  function setPan(x, y) { pan = clampPan({ x, y }); apply(); persist(); }
+  function setZoom(z, ax, ay) {
+    const r = vp.getBoundingClientRect();
+    const nz = clamp(z, ZMIN, ZMAX);
+    if (ax == null) ax = r.width / 2;
+    if (ay == null) ay = r.height / 2;
+    const cx = (ax - pan.x) / zoom, cy = (ay - pan.y) / zoom;
+    zoom = nz;
+    pan = clampPan({ x: ax - cx * zoom, y: ay - cy * zoom });
+    apply(); persist();
+  }
+  function zoomStep(dir) { setZoom(zoom * (dir > 0 ? 1.15 : 1 / 1.15)); }
+  function toCanvas(clientX, clientY) {
+    const r = vp.getBoundingClientRect();
+    return { x: (clientX - r.left - pan.x) / zoom, y: (clientY - r.top - pan.y) / zoom };
+  }
+  function centerOn(cx, cy) { const r = vp.getBoundingClientRect(); setPan(r.width / 2 - cx * zoom, r.height / 2 - cy * zoom); }
+
+  /* desktop scrollbars — slim overlay indicators, draggable */
+  const hTrack = $('#hscroll'), vTrack = $('#vscroll');
+  const hThumb = $('#hscroll .sc-thumb'), vThumb = $('#vscroll .sc-thumb');
+  function syncBars() {
+    if (!hTrack || !vTrack) return;
+    const r = vp.getBoundingClientRect();
+    const content = SIZE * zoom;
+    [
+      { track: hTrack, thumb: hThumb, view: r.width, dim: 'width', pos: 'left', pan: pan.x },
+      { track: vTrack, thumb: vThumb, view: r.height, dim: 'height', pos: 'top', pan: pan.y }
+    ].forEach(a => {
+      if (content <= a.view + 1) { a.track.style.display = 'none'; return; }
+      a.track.style.display = '';
+      const trackLen = (a.dim === 'width') ? a.track.clientWidth : a.track.clientHeight;
+      const len = Math.max(24, trackLen * (a.view / content));
+      const range = trackLen - len, scrollable = content - a.view;
+      const p = scrollable > 0 ? clamp(-a.pan / scrollable, 0, 1) : 0;
+      a.thumb.style[a.dim] = len + 'px';
+      a.thumb.style[a.pos] = (p * range) + 'px';
+    });
+  }
+  function barDrag(thumb, axis) {
+    if (!thumb) return;
+    thumb.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return;
+      e.preventDefault(); e.stopPropagation();
+      thumb.classList.add('drag');
+      thumb.setPointerCapture(e.pointerId);
+      const r = vp.getBoundingClientRect();
+      const view = axis === 'x' ? r.width : r.height;
+      const trackLen = axis === 'x' ? hTrack.clientWidth : vTrack.clientHeight;
+      const content = SIZE * zoom;
+      const len = Math.max(24, trackLen * (view / content));
+      const range = trackLen - len, scrollable = content - view;
+      const start = axis === 'x' ? e.clientX : e.clientY;
+      const startPan = axis === 'x' ? pan.x : pan.y;
+      const mv = ev => {
+        if (ev.pointerId !== e.pointerId || range <= 0 || scrollable <= 0) return;
+        const d = (axis === 'x' ? ev.clientX : ev.clientY) - start;
+        const np = startPan - (d / range) * scrollable;
+        if (axis === 'x') setPan(np, pan.y); else setPan(pan.x, np);
+      };
+      const up = ev => {
+        if (ev.pointerId !== e.pointerId) return;
+        thumb.classList.remove('drag');
+        thumb.removeEventListener('pointermove', mv); thumb.removeEventListener('pointerup', up); thumb.removeEventListener('pointercancel', up);
+      };
+      thumb.addEventListener('pointermove', mv); thumb.addEventListener('pointerup', up); thumb.addEventListener('pointercancel', up);
+    });
+  }
+  barDrag(hThumb, 'x'); barDrag(vThumb, 'y');
+
+  pan = clampPan(pan); apply();
+
+  /* keep clamp + scrollbars in sync when the viewport resizes (window or sidebar) */
+  if (window.ResizeObserver) new ResizeObserver(() => { pan = clampPan(pan); apply(); persist(); }).observe(vp);
+  else window.addEventListener('resize', () => { pan = clampPan(pan); apply(); persist(); });
+
+  /* ctrl+wheel zoom centered on cursor */
+  vp.addEventListener('wheel', e => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    const r = vp.getBoundingClientRect();
+    setZoom(zoom * Math.exp(-e.deltaY * 0.0018), e.clientX - r.left, e.clientY - r.top);
+  }, { passive: false });
+
+  /* background / space pan */
+  vp.addEventListener('pointerdown', e => {
+    const bg = (e.target === cv || e.target === vp);
+    if (e.button !== 0 || !(bg || spaceHeld)) return;
+    if (spaceHeld) e.preventDefault();
+    panDrag = { sx: e.clientX, sy: e.clientY, px: pan.x, py: pan.y, id: e.pointerId };
+    vp.setPointerCapture(e.pointerId);
+    vp.classList.add('panning');
+  });
+  vp.addEventListener('pointermove', e => {
+    if (!panDrag || e.pointerId !== panDrag.id) return;
+    pan = clampPan({ x: panDrag.px + (e.clientX - panDrag.sx), y: panDrag.py + (e.clientY - panDrag.sy) });
+    apply();
+  });
+  const endPan = e => { if (panDrag && e.pointerId === panDrag.id) { panDrag = null; vp.classList.remove('panning'); persist(); } };
+  vp.addEventListener('pointerup', endPan);
+  vp.addEventListener('pointercancel', endPan);
+
+  const editable = t => t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
+  window.addEventListener('keydown', e => {
+    if (e.code === 'Space' && !editable(document.activeElement)) {
+      if (!spaceHeld) { spaceHeld = true; vp.classList.add('pan-ready'); }
+      e.preventDefault();
+    }
+  });
+  window.addEventListener('keyup', e => { if (e.code === 'Space') { spaceHeld = false; vp.classList.remove('pan-ready'); } });
+  window.addEventListener('blur', () => { spaceHeld = false; vp.classList.remove('pan-ready'); });
+
+  /* edge auto-pan engine (used while dragging/resizing windows) */
+  function loop() {
+    if (!auto.active) return;
+    const r = vp.getBoundingClientRect();
+    let dx = 0, dy = 0;
+    if (auto.cx - r.left < EDGE) dx = SPEED; else if (r.right - auto.cx < EDGE) dx = -SPEED;
+    if (auto.cy - r.top < EDGE) dy = SPEED; else if (r.bottom - auto.cy < EDGE) dy = -SPEED;
+    if (dx || dy) {
+      const np = clampPan({ x: pan.x + dx, y: pan.y + dy });
+      if (np.x !== pan.x || np.y !== pan.y) { pan = np; apply(); if (auto.onPan) auto.onPan(); }
+    }
+    auto.raf = requestAnimationFrame(loop);
+  }
+  function startAuto(onPan) { auto.onPan = onPan; auto.active = true; cancelAnimationFrame(auto.raf); loop(); }
+  function moveAuto(cx, cy) { auto.cx = cx; auto.cy = cy; }
+  function stopAuto() { auto.active = false; cancelAnimationFrame(auto.raf); auto.onPan = null; persist(); }
+
+  function fitAll(rects) {
+    if (!rects.length) { Toast('No visible windows'); return; }
+    let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+    rects.forEach(b => { x1 = Math.min(x1, b.x); y1 = Math.min(y1, b.y); x2 = Math.max(x2, b.x + b.w); y2 = Math.max(y2, b.y + b.h); });
+    const r = vp.getBoundingClientRect(), M = 30;
+    const bw = Math.max(1, x2 - x1), bh = Math.max(1, y2 - y1);
+    zoom = clamp(Math.min((r.width - 2 * M) / bw, (r.height - 2 * M) / bh, 1), ZMIN, ZMAX);
+    const px = (r.width - bw * zoom) / 2 - x1 * zoom;
+    const py = (r.height - bh * zoom) / 2 - y1 * zoom;
+    setPan(px, py);
+    Log.add('fit all (' + rects.length + ' windows)');
+  }
+
+  return { SIZE, get pan() { return pan; }, get zoom() { return zoom; }, get spaceHeld() { return spaceHeld; }, toCanvas, setPan, setZoom, zoomStep, centerOn, fitAll, startAuto, moveAuto, stopAuto };
+})();
+
+/* ================= WinMgr ================= */
+const WinMgr = (() => {
+  const cv = $('#canvas');
+  const wins = new Map();
+  const MIN_W = 320, MIN_H = 160;
+
+  function g(id) { return Store.prefs.windows[id]; }
+
+  function applyGeo(id) {
+    const w = wins.get(id).el, gg = g(id);
+    w.style.left = gg.x + 'px'; w.style.top = gg.y + 'px';
+    w.style.width = gg.w + 'px'; w.style.height = gg.h + 'px';
+    w.style.zIndex = gg.z; w.style.display = gg.visible ? 'flex' : 'none';
+  }
+  function applyPos(id) {
+    const w = wins.get(id).el, gg = g(id);
+    w.style.left = gg.x + 'px'; w.style.top = gg.y + 'px';
+    w.style.width = gg.w + 'px'; w.style.height = gg.h + 'px';
+  }
+
+  function focus(id) {
+    const gg = g(id);
+    gg.z = ++Store.prefs.topZ;
+    wins.get(id).el.style.zIndex = gg.z;
+    wins.forEach((w, k) => w.el.classList.toggle('focused', k === id));
+    Store.savePrefs();
+  }
+
+  function ensureInView(id) {
+    const gg = g(id);
+    const r = $('#viewport').getBoundingClientRect();
+    const z = Canvas.zoom;
+    const vx1 = -Canvas.pan.x / z, vy1 = -Canvas.pan.y / z, vx2 = vx1 + r.width / z, vy2 = vy1 + r.height / z;
+    const cx = gg.x + gg.w / 2, cy = gg.y + gg.h / 2;
+    if (cx < vx1 || cx > vx2 || cy < vy1 || cy > vy2) Canvas.centerOn(cx, cy);
+  }
+
+  function show(id) { g(id).visible = true; applyGeo(id); focus(id); ensureInView(id); Bus.emit('win-vis'); Store.savePrefs(); }
+  function hide(id) { g(id).visible = false; applyGeo(id); Bus.emit('win-vis'); Store.savePrefs(); }
+  function toggle(id) { g(id).visible ? hide(id) : show(id); }
+  function visibleRects() {
+    const out = [];
+    wins.forEach((w, id) => { const gg = g(id); if (gg.visible) out.push({ x: gg.x, y: gg.y, w: gg.w, h: gg.h }); });
+    return out;
+  }
+
+  function startDrag(id, e, headEl) {
+    focus(id);
+    const gg = g(id);
+    const start = Canvas.toCanvas(e.clientX, e.clientY);
+    const off = { x: start.x - gg.x, y: start.y - gg.y };
+    let last = { cx: e.clientX, cy: e.clientY };
+    headEl.setPointerCapture(e.pointerId);
+    const update = () => {
+      const pt = Canvas.toCanvas(last.cx, last.cy);
+      gg.x = clamp(Math.round(pt.x - off.x), 0, Canvas.SIZE - gg.w);
+      gg.y = clamp(Math.round(pt.y - off.y), 0, Canvas.SIZE - gg.h);
+      applyPos(id);
+    };
+    const mv = ev => { if (ev.pointerId !== e.pointerId) return; last = { cx: ev.clientX, cy: ev.clientY }; Canvas.moveAuto(ev.clientX, ev.clientY); update(); };
+    const up = ev => {
+      if (ev.pointerId !== e.pointerId) return;
+      headEl.removeEventListener('pointermove', mv); headEl.removeEventListener('pointerup', up); headEl.removeEventListener('pointercancel', up);
+      Canvas.stopAuto(); Store.savePrefs();
+    };
+    headEl.addEventListener('pointermove', mv); headEl.addEventListener('pointerup', up); headEl.addEventListener('pointercancel', up);
+    Canvas.moveAuto(e.clientX, e.clientY);
+    Canvas.startAuto(update);
+  }
+
+  function startResize(id, dir, e, hEl) {
+    focus(id);
+    const gg = g(id);
+    const s = { x: gg.x, y: gg.y, w: gg.w, h: gg.h };
+    const start = Canvas.toCanvas(e.clientX, e.clientY);
+    let last = { cx: e.clientX, cy: e.clientY };
+    hEl.setPointerCapture(e.pointerId);
+    const update = () => {
+      const pt = Canvas.toCanvas(last.cx, last.cy);
+      const dx = pt.x - start.x, dy = pt.y - start.y;
+      let x = s.x, y = s.y, w = s.w, h = s.h;
+      if (dir.indexOf('e') >= 0) w = s.w + dx;
+      if (dir.indexOf('s') >= 0) h = s.h + dy;
+      if (dir.indexOf('w') >= 0) { w = s.w - dx; x = s.x + dx; }
+      if (dir.indexOf('n') >= 0) { h = s.h - dy; y = s.y + dy; }
+      if (w < MIN_W) { if (dir.indexOf('w') >= 0) x = s.x + s.w - MIN_W; w = MIN_W; }
+      if (h < MIN_H) { if (dir.indexOf('n') >= 0) y = s.y + s.h - MIN_H; h = MIN_H; }
+      x = clamp(x, 0, Canvas.SIZE - MIN_W); y = clamp(y, 0, Canvas.SIZE - MIN_H);
+      w = Math.min(w, Canvas.SIZE - x); h = Math.min(h, Canvas.SIZE - y);
+      gg.x = Math.round(x); gg.y = Math.round(y); gg.w = Math.round(w); gg.h = Math.round(h);
+      applyPos(id);
+    };
+    const mv = ev => { if (ev.pointerId !== e.pointerId) return; last = { cx: ev.clientX, cy: ev.clientY }; Canvas.moveAuto(ev.clientX, ev.clientY); update(); };
+    const up = ev => {
+      if (ev.pointerId !== e.pointerId) return;
+      hEl.removeEventListener('pointermove', mv); hEl.removeEventListener('pointerup', up); hEl.removeEventListener('pointercancel', up);
+      Canvas.stopAuto(); Store.savePrefs();
+    };
+    hEl.addEventListener('pointermove', mv); hEl.addEventListener('pointerup', up); hEl.addEventListener('pointercancel', up);
+    Canvas.moveAuto(e.clientX, e.clientY);
+    Canvas.startAuto(update);
+  }
+
+  function create(def) {
+    Store.prefs.windows[def.id] = Object.assign({}, def.def, Store.prefs.windows[def.id] || {});
+    const gg = g(def.id);
+    if (gg.z > Store.prefs.topZ) Store.prefs.topZ = gg.z;
+    const head = el('div', { class: 'win-head' },
+      el('span', { class: 'ico', text: def.icon }),
+      el('span', { class: 'ttl', text: def.title }),
+      el('button', { class: 'icon', title: 'Hide window', text: '✕', onclick: ev => { ev.stopPropagation(); hide(def.id); } })
+    );
+    const body = el('div', { class: 'win-body' });
+    const w = el('div', { class: 'win' }, head, body);
+    ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'].forEach(d => w.append(el('div', { class: 'rs ' + d, 'data-d': d })));
+    cv.append(w);
+    wins.set(def.id, { def, el: w, body });
+    applyGeo(def.id);
+    w.addEventListener('pointerdown', () => focus(def.id));
+    head.addEventListener('pointerdown', e => {
+      if (e.button !== 0 || Canvas.spaceHeld) return;
+      if (e.target.closest('button')) return;
+      e.preventDefault();
+      startDrag(def.id, e, head);
+    });
+    w.querySelectorAll('.rs').forEach(h => h.addEventListener('pointerdown', e => {
+      if (e.button !== 0 || Canvas.spaceHeld) return;
+      e.preventDefault(); e.stopPropagation();
+      startResize(def.id, h.dataset.d, e, h);
+    }));
+    def.build(body);
+  }
+
+  function boot(defs) { defs.forEach(create); Bus.emit('win-vis'); Store.savePrefsNow(); }
+
+  return { boot, show, hide, toggle, focus, visibleRects, isVisible: id => !!(g(id) && g(id).visible) };
+})();
+
+/* ================= Prompts ================= */
+const FRAMEWORKS = {
+  jungian:   { name: 'Jungian',   version: 'v1', lens: 'Interpret through Jungian analytical psychology: archetypes, the shadow, anima and animus, the collective unconscious, individuation, and compensation - what the psyche may be balancing or integrating.' },
+  freudian:  { name: 'Freudian',  version: 'v1', lens: 'Interpret through Freudian psychoanalysis: manifest versus latent content, wish fulfillment, condensation and displacement, symbolism, and day residues from recent waking life.' },
+  gestalt:   { name: 'Gestalt',   version: 'v1', lens: 'Interpret through Gestalt dream work: treat every element of the dream as a projected, disowned aspect of the dreamer; describe what each part may represent and what contact or completion is being sought.' },
+  shamanic:  { name: 'Shamanic',  version: 'v1', lens: 'Interpret through a shamanic perspective: the dream as a journey, attending to spirit animals, guides, thresholds between worlds, omens, energies, and messages for the path of the dreamer.' },
+  cognitive: { name: 'Cognitive', version: 'v1', lens: 'Interpret through cognitive science: dreams as memory consolidation, emotional processing, threat or social simulation, and continuity with waking concerns; ground the reading in plausible cognitive function.' }
+};
+
+const STYLES = {
+  plain:    { name: 'Plain',    def: 'simple everyday language, short sentences, no jargon; readable by anyone.' },
+  standard: { name: 'Standard', def: 'clear balanced register; accessible, with framework terminology only where it earns its place.' },
+  advanced: { name: 'Advanced', def: 'full theoretical depth; precise framework terminology, layered analysis, scholarly register.' }
+};
+
+const Prompts = (() => {
+  const CONTRACT = [
+    'Respond with exactly three sections, in this order, using these exact delimiter lines:',
+    '===ELEMENTS===',
+    'A markdown table with two columns: | Element | Meaning | - one row per significant element.',
+    '===INTERPRETATION===',
+    'Prose interpretation through the lens described above.',
+    '===INSIGHT===',
+    'One short paragraph distilling the core takeaway. No questions.'
+  ].join('\n');
+
+  const RULES = 'Tone is educational, not therapeutic. No greetings, no questions, no disclaimers, no preamble - output nothing outside the three sections.';
+
+  function interpretation(fwKey, dreamText) {
+    const f = FRAMEWORKS[fwKey] || FRAMEWORKS.jungian;
+    return [
+      'You are interpreting a dream for educational purposes.',
+      'Framework (' + f.name + ' ' + f.version + '): ' + f.lens,
+      '',
+      'Dream:',
+      '"""',
+      String(dreamText || '').trim(),
+      '"""',
+      '',
+      RULES,
+      '',
+      CONTRACT
+    ].join('\n');
+  }
+
+  function depth(run, styleKey) {
+    const s = STYLES[styleKey] || STYLES.standard;
+    const f = FRAMEWORKS[run.framework] || {};
+    return [
+      'Rewrite the dream interpretation between the <<<INTERPRETATION>>> markers in a different style.',
+      'Original framework: ' + (f.name || run.framework) + '.',
+      'Target style - ' + s.name + ': ' + s.def,
+      'Hold the content identical: same elements, same claims, same conclusions. Change only voice and register.',
+      '',
+      '<<<INTERPRETATION>>>',
+      String(run.output || '').trim(),
+      '<<<INTERPRETATION>>>',
+      '',
+      RULES,
+      '',
+      CONTRACT
+    ].join('\n');
+  }
+
+  function waking(run, context) {
+    const f = FRAMEWORKS[run.framework] || {};
+    return [
+      'Integrate the waking-life context between the [[CONTEXT]] markers with the dream interpretation between the <<<INTERPRETATION>>> markers.',
+      'Original framework: ' + (f.name || run.framework) + '.',
+      'Map dream elements to the waking situation only where the connection is plausible; do not force links. Note where the dream and the waking context diverge.',
+      '',
+      '[[CONTEXT]]',
+      String(context || '').trim(),
+      '[[CONTEXT]]',
+      '',
+      '<<<INTERPRETATION>>>',
+      String(run.output || '').trim(),
+      '<<<INTERPRETATION>>>',
+      '',
+      RULES,
+      '',
+      CONTRACT
+    ].join('\n');
+  }
+
+  return { interpretation, depth, waking };
+})();
+
+/* ================= Parser ================= */
+const Parser = (() => {
+  function secRe(name) {
+    return new RegExp('^[#>*_\\s]*===\\s*' + name + '\\s*===[*_\\s]*$', 'im');
+  }
+
+  function parse(raw) {
+    const text = String(raw || '');
+    const mE = secRe('ELEMENTS').exec(text);
+    const mIp = secRe('INTERPRETATION').exec(text);
+    const mIn = secRe('INSIGHT').exec(text);
+    if (!mE || !mIp || !mIn) return { ok: false, elements: '', interpretation: '', insight: '' };
+    if (!(mE.index < mIp.index && mIp.index < mIn.index)) return { ok: false, elements: '', interpretation: '', insight: '' };
+    return {
+      ok: true,
+      elements: text.slice(mE.index + mE[0].length, mIp.index).trim(),
+      interpretation: text.slice(mIp.index + mIp[0].length, mIn.index).trim(),
+      insight: text.slice(mIn.index + mIn[0].length).trim()
+    };
+  }
+
+  function mdTable(md) {
+    const rows = String(md || '').split('\n')
+      .map(l => l.trim())
+      .filter(l => l.indexOf('|') !== -1)
+      .filter(l => !/^[\s|:\-]+$/.test(l))
+      .map(l => l.replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim()));
+    if (!rows.length) return null;
+    const t = el('table', { class: 'md' });
+    rows.forEach((cells, i) => {
+      const tr = el('tr');
+      cells.forEach(c => tr.append(el(i === 0 ? 'th' : 'td', { text: c })));
+      t.append(tr);
+    });
+    return t;
+  }
+
+  return { parse, mdTable };
+})();
+
+/* ================= shared pipeline helpers ================= */
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    Toast('Copied'); return true;
+  } catch (e) {
+    try {
+      const ta = el('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.append(ta); ta.select();
+      const ok = document.execCommand('copy');
+      ta.remove();
+      Toast(ok ? 'Copied' : 'Copy failed', ok ? '' : 'err');
+      return ok;
+    } catch (e2) { Toast('Copy failed', 'err'); return false; }
+  }
+}
+
+function runLabel(r, i) {
+  const fw = (FRAMEWORKS[r.framework] || {}).name || r.framework || '?';
+  const bits = [String(i + 1) + '.', r.kind, fw];
+  if (r.style) bits.push(r.style);
+  if (r.model) bits.push(r.model);
+  return bits.join(' \u00b7 ') + ' \u2014 ' + fmtTime(r.createdAt) + (r.parseOk ? '' : ' (unparsed)');
+}
+
+function field(labelText, control) {
+  return el('label', { class: 'fld' }, el('span', { text: labelText }), control);
+}
+
+function fieldFill(labelText, control) {
+  return el('label', { class: 'fld fill' }, el('span', { text: labelText }), control);
+}
+
+/* ================= Pipeline (stage windows) ================= */
+function withEmpty(body, content, msg) {
+  const e = el('div', { class: 'empty', text: msg || 'No dream open \u2014 create or open one in the Library.' });
+  body.append(content, e);
+  function refresh() {
+    const has = !!Store.dream;
+    content.style.display = has ? '' : 'none';
+    e.style.display = has ? 'none' : '';
+  }
+  Bus.on('dream-changed', refresh);
+  refresh();
+}
+
+function findRun(id) {
+  const d = Store.dream;
+  return d ? (d.runs.find(r => r.id === id) || null) : null;
+}
+
+function refreshSourceSelect(sel) {
+  const d = Store.dream;
+  const prev = sel.value;
+  sel.innerHTML = '';
+  sel.append(el('option', { value: '', text: '\u2014 select run \u2014' }));
+  if (d) d.runs.forEach((r, i) => sel.append(el('option', { value: r.id, text: runLabel(r, i) })));
+  sel.value = (prev && d && d.runs.some(r => r.id === prev)) ? prev : '';
+}
+
+function stageIO(opts) {
+  const promptTa = el('textarea', { class: 'code', readonly: true, rows: '7', placeholder: 'Prompt builds here' });
+  const copyBtn = el('button', { class: 'primary', text: 'Copy prompt' });
+  const pasteTa = el('textarea', { class: 'code', rows: '7', placeholder: 'Paste model output here' });
+  const saveBtn = el('button', { class: 'primary right', text: 'Save run' });
+  const badge = el('span', { class: 'badge' });
+  badge.style.display = 'none';
+  saveBtn.disabled = true;
+  let snapshot = null;
+
+  function rebuild(clearSnap) {
+    if (clearSnap) snapshot = null;
+    const p = opts.getPrompt();
+    promptTa.value = p || '';
+    copyBtn.disabled = !p;
+  }
+  copyBtn.addEventListener('click', () => {
+    if (!promptTa.value) return;
+    snapshot = promptTa.value;
+    copyText(snapshot);
+  });
+  pasteTa.addEventListener('input', () => { saveBtn.disabled = !pasteTa.value.trim(); });
+  saveBtn.addEventListener('click', () => {
+    const raw = pasteTa.value.trim();
+    if (!raw || !Store.dream) return;
+    const parsed = Parser.parse(raw);
+    const run = opts.makeRun(raw, parsed, snapshot != null ? snapshot : promptTa.value);
+    if (!run) { Toast('Pick a source run first', 'err'); return; }
+    Store.addRun(run);
+    pasteTa.value = ''; saveBtn.disabled = true; snapshot = null;
+    badge.style.display = '';
+    badge.className = 'badge ' + (parsed.ok ? 'ok' : 'warn');
+    badge.textContent = parsed.ok ? 'parsed' : 'unparsed';
+    Toast(parsed.ok ? 'Run saved' : 'Run saved (unparsed)');
+    Log.add('run saved \u00b7 ' + run.kind + ' \u00b7 ' + (parsed.ok ? 'parsed' : 'unparsed'));
+  });
+
+  return {
+    rebuild,
+    nodes: [
+      fieldFill('Prompt', promptTa),
+      el('div', { class: 'row' }, copyBtn),
+      fieldFill('Output', pasteTa),
+      el('div', { class: 'row' }, badge, saveBtn)
+    ],
+    saveBtn, badge, promptTa, pasteTa
+  };
+}
+
+function buildDream(body) {
+  const name = el('input', { type: 'text', placeholder: 'Dream name' });
+  const fw = el('select');
+  Object.keys(FRAMEWORKS).forEach(k => fw.append(el('option', { value: k, text: FRAMEWORKS[k].name })));
+  const txt = el('textarea', { rows: '10', placeholder: 'Describe the dream\u2026' });
+
+  name.addEventListener('input', () => {
+    const d = Store.dream; if (!d) return;
+    d.name = name.value; Store.touch(); Bus.emit('library-changed');
+  });
+  fw.addEventListener('change', () => {
+    Store.prefs.framework = fw.value; Store.savePrefs(); Bus.emit('pipeline-changed');
+  });
+  txt.addEventListener('input', () => {
+    const d = Store.dream; if (!d) return;
+    d.dreamText = txt.value; Store.touch(); Bus.emit('pipeline-changed');
+  });
+
+  const content = el('div', { class: 'fill' },
+    field('Name', name),
+    field('Framework', fw),
+    fieldFill('Dream', txt)
+  );
+  withEmpty(body, content);
+
+  function hydrate() {
+    const d = Store.dream; if (!d) return;
+    if (name.value !== (d.name || '')) name.value = d.name || '';
+    if (txt.value !== (d.dreamText || '')) txt.value = d.dreamText || '';
+    fw.value = Store.prefs.framework || 'jungian';
+  }
+  Bus.on('dream-changed', hydrate);
+  hydrate();
+}
+
+function buildInterpret(body) {
+  const model = el('input', { type: 'text', placeholder: 'claude / gpt / gemini / \u2026', value: Store.prefs.lastModel || '' });
+  const io = stageIO({
+    getPrompt: () => {
+      const d = Store.dream;
+      if (!d || !(d.dreamText || '').trim()) return null;
+      return Prompts.interpretation(Store.prefs.framework || 'jungian', d.dreamText);
+    },
+    makeRun: (raw, parsed, promptText) => {
+      const fwKey = Store.prefs.framework || 'jungian';
+      Store.prefs.lastModel = model.value.trim(); Store.savePrefs();
+      return {
+        id: uid('r'), kind: 'interpretation',
+        framework: fwKey,
+        frameworkVersion: (FRAMEWORKS[fwKey] || {}).version || 'v1',
+        style: null,
+        model: model.value.trim(),
+        prompt: promptText,
+        output: raw,
+        parsed: { elements: parsed.elements, interpretation: parsed.interpretation, insight: parsed.insight },
+        parseOk: parsed.ok,
+        sourceRunId: null,
+        createdAt: nowIso()
+      };
+    }
+  });
+  const content = el('div', { class: 'fill' }, field('Model', model), ...io.nodes);
+  withEmpty(body, content);
+  Bus.on('dream-changed', () => io.rebuild(true));
+  Bus.on('pipeline-changed', () => io.rebuild());
+  io.rebuild(true);
+}
+
+function buildDepth(body) {
+  const src = el('select');
+  const style = el('select');
+  Object.keys(STYLES).forEach(k => style.append(el('option', { value: k, text: STYLES[k].name })));
+  style.value = 'plain';
+  const model = el('input', { type: 'text', placeholder: 'model', value: Store.prefs.lastModel || '' });
+
+  const io = stageIO({
+    getPrompt: () => {
+      const r = findRun(src.value);
+      return r ? Prompts.depth(r, style.value) : null;
+    },
+    makeRun: (raw, parsed, promptText) => {
+      const r = findRun(src.value); if (!r) return null;
+      Store.prefs.lastModel = model.value.trim(); Store.savePrefs();
+      return {
+        id: uid('r'), kind: 'depth',
+        framework: r.framework,
+        frameworkVersion: r.frameworkVersion || 'v1',
+        style: style.value,
+        model: model.value.trim(),
+        prompt: promptText,
+        output: raw,
+        parsed: { elements: parsed.elements, interpretation: parsed.interpretation, insight: parsed.insight },
+        parseOk: parsed.ok,
+        sourceRunId: r.id,
+        createdAt: nowIso()
+      };
+    }
+  });
+  src.addEventListener('change', () => io.rebuild(true));
+  style.addEventListener('change', () => io.rebuild(true));
+
+  const content = el('div', { class: 'fill' },
+    field('Source run', src),
+    field('Style', style),
+    field('Model', model),
+    ...io.nodes
+  );
+  withEmpty(body, content, 'No dream open \u2014 save an interpretation run first, then restyle it here.');
+
+  function refreshAll() { refreshSourceSelect(src); io.rebuild(true); }
+  Bus.on('dream-changed', refreshAll);
+  Bus.on('runs-changed', refreshAll);
+  refreshAll();
+}
+
+function buildWaking(body) {
+  const ctx = el('textarea', { rows: '5', placeholder: 'What is going on in waking life\u2026' });
+  const src = el('select');
+  const model = el('input', { type: 'text', placeholder: 'model', value: Store.prefs.lastModel || '' });
+
+  ctx.addEventListener('input', () => {
+    const d = Store.dream; if (!d) return;
+    d.wakingContext = ctx.value; Store.touch();
+    io.rebuild();
+  });
+
+  const io = stageIO({
+    getPrompt: () => {
+      const d = Store.dream;
+      const r = findRun(src.value);
+      if (!d || !r || !(d.wakingContext || '').trim()) return null;
+      return Prompts.waking(r, d.wakingContext);
+    },
+    makeRun: (raw, parsed, promptText) => {
+      const r = findRun(src.value); if (!r) return null;
+      Store.prefs.lastModel = model.value.trim(); Store.savePrefs();
+      return {
+        id: uid('r'), kind: 'waking',
+        framework: r.framework,
+        frameworkVersion: r.frameworkVersion || 'v1',
+        style: null,
+        model: model.value.trim(),
+        prompt: promptText,
+        output: raw,
+        parsed: { elements: parsed.elements, interpretation: parsed.interpretation, insight: parsed.insight },
+        parseOk: parsed.ok,
+        sourceRunId: r.id,
+        createdAt: nowIso()
+      };
+    }
+  });
+  src.addEventListener('change', () => io.rebuild(true));
+
+  const content = el('div', { class: 'fill' },
+    field('Waking context', ctx),
+    field('Source run', src),
+    field('Model', model),
+    ...io.nodes
+  );
+  withEmpty(body, content);
+
+  function hydrate() {
+    const d = Store.dream;
+    if (d && ctx.value !== (d.wakingContext || '')) ctx.value = d.wakingContext || '';
+    refreshSourceSelect(src);
+    io.rebuild(true);
+  }
+  Bus.on('dream-changed', hydrate);
+  Bus.on('runs-changed', () => { refreshSourceSelect(src); io.rebuild(true); });
+  hydrate();
+}
+
+function buildNotes(body) {
+  const txt = el('textarea', { rows: '8', placeholder: 'Per-dream scratchpad\u2026' });
+  txt.addEventListener('input', () => {
+    const d = Store.dream; if (!d) return;
+    d.notes = txt.value; Store.touch();
+  });
+  const content = el('div', { class: 'fill' }, fieldFill('Notes', txt));
+  withEmpty(body, content);
+  function hydrate() {
+    const d = Store.dream; if (!d) return;
+    if (txt.value !== (d.notes || '')) txt.value = d.notes || '';
+  }
+  Bus.on('dream-changed', hydrate);
+  hydrate();
+}
+
+/* ================= Library: export / import ================= */
+function slug(s) {
+  return String(s || 'dream').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'dream';
+}
+function stamp() {
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  return '' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes());
+}
+function download(filename, obj) {
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = el('a', { href: url, download: filename });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function envelope(dreams) { return { app: 'FableDB_v1', exportedAt: nowIso(), dreams: dreams }; }
+function parseImport(json) {
+  if (Array.isArray(json)) return json;
+  if (json && Array.isArray(json.dreams)) return json.dreams;
+  if (json && json.id) return [json];
+  return null;
+}
+function pickImportFile() {
+  const inp = el('input', { type: 'file', accept: '.json,application/json' });
+  inp.style.display = 'none';
+  document.body.append(inp);
+  inp.addEventListener('change', async () => {
+    const f = inp.files && inp.files[0];
+    inp.remove();
+    if (!f) return;
+    try {
+      const text = await f.text();
+      const arr = parseImport(JSON.parse(text));
+      if (!arr) { Toast('Unrecognized file shape', 'err'); return; }
+      const res = await Store.importDreams(arr);
+      Toast('Imported \u00b7 ' + res.added + ' added, ' + res.updated + ' updated, ' + res.skipped + ' skipped');
+    } catch (e) {
+      Toast('Import failed', 'err');
+      Log.add('import failed: ' + e.message, 'err');
+    }
+  });
+  inp.click();
+}
+async function exportAll() {
+  const all = await Store.listDreams();
+  if (!all.length) { Toast('Nothing to export', 'err'); return; }
+  download('fable-all-' + stamp() + '.json', envelope(all));
+  Log.add('exported all (' + all.length + ' dreams)');
+}
+function exportOne(d) {
+  if (!d) { Toast('No dream selected', 'err'); return; }
+  download('fable-' + slug(d.name) + '-' + d.id + '.json', envelope([d]));
+  Log.add('exported \"' + (d.name || d.id) + '\"');
+}
+
+/* ================= Library window ================= */
+function buildLibrary(body) {
+  const search = el('input', { type: 'text', placeholder: 'Search dreams\u2026' });
+  const list = el('div', { class: 'scroller' });
+  let cur = null;
+
+  async function refresh() {
+    const q = search.value.trim().toLowerCase();
+    const all = await Store.listDreams();
+    const act = Store.dream ? Store.dream.id : null;
+    if (cur && !all.some(d => d.id === cur)) cur = null;
+    list.innerHTML = '';
+    all.filter(d => !q || (d.name || '').toLowerCase().indexOf(q) !== -1).forEach(d => {
+      const row = el('div', { class: 'lib-row' + (d.id === cur ? ' sel' : '') + (d.id === act ? ' active-dream' : '') },
+        el('div', { class: 'nm', text: d.name || '(unnamed)' }),
+        el('div', { class: 'meta', text: fmtTime(d.updatedAt) + ' \u00b7 ' + (d.runs ? d.runs.length : 0) + ' runs' })
+      );
+      row.addEventListener('click', () => { cur = (cur === d.id) ? null : d.id; refresh(); });
+      row.addEventListener('dblclick', () => Store.openDream(d.id));
+      list.append(row);
+    });
+    if (!list.children.length) {
+      list.append(el('div', { class: 'empty', text: q ? 'No matches.' : 'No dreams yet \u2014 hit New.' }));
+    }
+  }
+  search.addEventListener('input', debounce(refresh, 150));
+
+  async function selectedDream() {
+    if (!cur) return Store.dream;
+    const all = await Store.listDreams();
+    return all.find(d => d.id === cur) || Store.dream;
+  }
+
+  const bNew = el('button', { class: 'primary', text: 'New' });
+  bNew.addEventListener('click', async () => {
+    const name = prompt('Dream name', 'Untitled dream');
+    if (name == null) return;
+    const d = await Store.createDream(name.trim() || 'Untitled dream');
+    if (d) cur = d.id;
+    refresh();
+  });
+  const bOpen = el('button', { text: 'Open' });
+  bOpen.addEventListener('click', () => { if (cur) Store.openDream(cur); else Toast('Select a dream first', 'err'); });
+  const bRen = el('button', { text: 'Rename' });
+  bRen.addEventListener('click', async () => {
+    const d = await selectedDream();
+    if (!d) { Toast('Select a dream first', 'err'); return; }
+    const name = prompt('Rename dream', d.name || '');
+    if (name == null || !name.trim()) return;
+    Store.renameDream(d.id, name.trim());
+  });
+  const bDel = el('button', { class: 'danger', text: 'Delete' });
+  bDel.addEventListener('click', async () => {
+    const d = await selectedDream();
+    if (!d) { Toast('Select a dream first', 'err'); return; }
+    if (!confirm('Delete \"' + (d.name || d.id) + '\" and all its runs?')) return;
+    if (cur === d.id) cur = null;
+    Store.deleteDream(d.id);
+  });
+  const bExp = el('button', { text: 'Export' });
+  bExp.addEventListener('click', async () => exportOne(await selectedDream()));
+  const bImp = el('button', { text: 'Import' });
+  bImp.addEventListener('click', pickImportFile);
+
+  body.append(
+    search,
+    el('div', { class: 'fill' }, list),
+    el('div', { class: 'row' }, bNew, bOpen, bRen, bDel, bExp, bImp)
+  );
+  Bus.on('library-changed', refresh);
+  Bus.on('dream-changed', refresh);
+  refresh();
+}
+
+/* ================= Compare window ================= */
+function buildCompare(body) {
+  const pick = el('div', { class: 'cmp-pick' });
+  const fullTgl = el('input', { type: 'checkbox' });
+  fullTgl.style.width = 'auto';
+  const grid = el('div', { class: 'cmp-wrap' });
+  const selected = new Set();
+
+  function cellPre(text) {
+    const c = el('div', { class: 'cmp-cell' });
+    c.append(el('pre', { text: text || '' }));
+    return c;
+  }
+
+  function renderGrid() {
+    const d = Store.dream;
+    grid.innerHTML = '';
+    if (!d) return;
+    const runs = d.runs.filter(r => selected.has(r.id));
+    if (!runs.length) {
+      grid.append(el('div', { class: 'empty', text: 'Select runs above to compare.' }));
+      return;
+    }
+    const showFull = fullTgl.checked;
+    const t = el('table', { class: 'cmp' });
+    const hr = el('tr');
+    ['Run', 'Insight', 'Elements'].forEach(h => hr.append(el('th', { text: h })));
+    if (showFull) hr.append(el('th', { text: 'Full output' }));
+    t.append(hr);
+    runs.forEach(r => {
+      const i = d.runs.indexOf(r);
+      const tr = el('tr');
+      const meta = el('td');
+      meta.append(el('div', { text: runLabel(r, i) }));
+      if (!r.parseOk) meta.append(el('span', { class: 'badge warn', text: 'unparsed' }));
+      tr.append(meta);
+      const ins = el('td');
+      ins.append(cellPre(r.parseOk ? (r.parsed && r.parsed.insight) : '\u2014 see full output \u2014'));
+      tr.append(ins);
+      const elc = el('td');
+      if (r.parseOk) {
+        const w = el('div', { class: 'cmp-cell' });
+        const tab = Parser.mdTable(r.parsed && r.parsed.elements);
+        if (tab) w.append(tab); else w.append(el('pre', { text: (r.parsed && r.parsed.elements) || '' }));
+        elc.append(w);
+      } else {
+        elc.append(cellPre('\u2014'));
+      }
+      tr.append(elc);
+      if (showFull) {
+        const f = el('td');
+        f.append(cellPre(r.output));
+        tr.append(f);
+      }
+      t.append(tr);
+    });
+    grid.append(t);
+  }
+
+  function refreshPick() {
+    const d = Store.dream;
+    pick.innerHTML = '';
+    if (d) for (const id of Array.from(selected)) { if (!d.runs.some(r => r.id === id)) selected.delete(id); }
+    if (!d || !d.runs.length) {
+      selected.clear();
+      pick.append(el('div', { class: 'hint', text: 'No runs saved yet.' }));
+      renderGrid();
+      return;
+    }
+    d.runs.forEach((r, i) => {
+      const cb = el('input', { type: 'checkbox' });
+      cb.checked = selected.has(r.id);
+      cb.addEventListener('change', () => {
+        if (cb.checked) selected.add(r.id); else selected.delete(r.id);
+        renderGrid();
+      });
+      const lab = el('label', { text: runLabel(r, i) });
+      lab.addEventListener('click', () => { cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); });
+      const del = el('button', { class: 'icon', title: 'Delete run', text: '\u2715' });
+      del.addEventListener('click', () => {
+        if (!confirm('Delete this run? This cannot be undone.')) return;
+        selected.delete(r.id);
+        Store.deleteRun(r.id);
+      });
+      pick.append(el('div', { class: 'cmp-pick-row' }, cb, lab, del));
+    });
+    renderGrid();
+  }
+
+  fullTgl.addEventListener('change', renderGrid);
+  const tglLab = el('label', { class: 'hint' }, fullTgl, ' Show full output');
+  tglLab.style.display = 'flex';
+  tglLab.style.alignItems = 'center';
+  tglLab.style.gap = '6px';
+
+  const content = el('div', { class: 'fill' },
+    field('Runs of this dream', pick),
+    el('div', { class: 'row' }, tglLab),
+    grid
+  );
+  withEmpty(body, content);
+  Bus.on('runs-changed', refreshPick);
+  Bus.on('dream-changed', () => { selected.clear(); refreshPick(); });
+  refreshPick();
+}
+
+/* ================= Log window ================= */
+function buildLog(body) {
+  const list = el('div', { class: 'log-list' });
+  Log.attach(list);
+  const clr = el('button', { text: 'Clear' });
+  clr.addEventListener('click', () => Log.clear());
+  body.append(list, el('div', { class: 'row' },
+    el('span', { class: 'hint grow', text: 'Session log \u2014 not persisted.' }),
+    clr
+  ));
+}
+
+/* ================= Settings window ================= */
+function buildSettings(body) {
+  const bExp = el('button', { class: 'primary', text: 'Export all dreams' });
+  bExp.addEventListener('click', exportAll);
+  const bImp = el('button', { text: 'Import JSON' });
+  bImp.addEventListener('click', pickImportFile);
+  const bReset = el('button', { text: 'Reset layout' });
+  bReset.addEventListener('click', () => {
+    if (!confirm('Reset window layout, sidebar, and pan to defaults? Dreams are untouched.')) return;
+    Store.prefs.windows = {};
+    Store.prefs.pan = null;
+    Store.prefs.zoom = 1;
+    Store.prefs.sidebar = { width: 260, expanded: 260, collapsed: false, order: null };
+    Store.savePrefsNow();
+    location.reload();
+  });
+  const bWipe = el('button', { class: 'danger', text: 'Wipe database\u2026' });
+  bWipe.addEventListener('click', async () => {
+    const v = prompt('This permanently deletes ALL dreams and runs.\nType DELETE to confirm.');
+    if (v !== 'DELETE') { if (v != null) Toast('Wipe cancelled'); return; }
+    await Store.wipeAll();
+    Toast('Database wiped');
+  });
+  body.append(
+    el('div', { class: 'hint', text: 'Data \u2014 IndexedDB is the source of truth; exports are plain JSON.' }),
+    el('div', { class: 'row' }, bExp, bImp),
+    el('div', { class: 'hint', text: 'Layout' }),
+    el('div', { class: 'row' }, bReset),
+    el('div', { class: 'hint', text: 'Danger zone' }),
+    el('div', { class: 'row' }, bWipe),
+    el('div', { class: 'hint', text: 'Dark blue theme \u2014 v4.4.6 lineage \u00b7 FableDB_v1' })
+  );
+}
+
+/* ================= window registry ================= */
+const OX = 2700, OY = 2700;
+const WINDOWS = [
+  { id: 'dream',     icon: '\ud83d\udcdd', title: 'Dream',     build: buildDream,     def: { x: OX + 380,  y: OY,        w: 440, h: 460, z: 12, visible: true } },
+  { id: 'interpret', icon: '\ud83e\uddea', title: 'Interpret', build: buildInterpret, def: { x: OX + 840,  y: OY,        w: 480, h: 580, z: 13, visible: true } },
+  { id: 'depth',     icon: '\ud83d\udd01', title: 'Depth',     build: buildDepth,     def: { x: OX + 1340, y: OY,        w: 460, h: 560, z: 14, visible: false } },
+  { id: 'waking',    icon: '\ud83c\udf05', title: 'Waking',    build: buildWaking,    def: { x: OX + 1340, y: OY + 120,  w: 460, h: 560, z: 15, visible: false } },
+  { id: 'notes',     icon: '\ud83d\uddd2\ufe0f', title: 'Notes', build: buildNotes,   def: { x: OX + 380,  y: OY + 480,  w: 440, h: 280, z: 16, visible: false } },
+  { id: 'library',   icon: '\ud83d\udcda', title: 'Library',   build: buildLibrary,   def: { x: OX,        y: OY,        w: 360, h: 460, z: 11, visible: true } },
+  { id: 'compare',   icon: '\ud83e\uddee', title: 'Compare',   build: buildCompare,   def: { x: OX + 380,  y: OY + 480,  w: 940, h: 420, z: 17, visible: false } },
+  { id: 'log',       icon: '\ud83e\udeb5', title: 'Log',       build: buildLog,       def: { x: OX,        y: OY + 480,  w: 360, h: 280, z: 18, visible: false } },
+  { id: 'settings',  icon: '\u2699\ufe0f', title: 'Settings',  build: buildSettings,  def: { x: OX + 860,  y: OY + 600,  w: 440, h: 320, z: 19, visible: false } }
+];
+
+/* ================= Sidebar ================= */
+const Sidebar = (() => {
+  const sb = $('#sidebar'), list = $('#sb-list'), toggle = $('#sb-toggle'), rz = $('#sb-resize');
+  let defs = [];
+  const SB_MIN = 56, SB_MAX = 400, SB_RAIL = 170;
+  let peeking = false, peekTimer = 0, retractTimer = 0;
+
+  function order() {
+    const ids = defs.map(d => d.id);
+    let ord = Store.prefs.sidebar.order;
+    if (!Array.isArray(ord)) ord = ids.slice();
+    ord = ord.filter(id => ids.indexOf(id) !== -1);
+    ids.forEach(id => { if (ord.indexOf(id) === -1) ord.push(id); });
+    Store.prefs.sidebar.order = ord;
+    return ord;
+  }
+
+  function render() {
+    list.innerHTML = '';
+    const byId = {};
+    defs.forEach(d => { byId[d.id] = d; });
+    order().forEach(id => {
+      const d = byId[id];
+      if (!d) return;
+      const item = el('div', { class: 'sb-item' + (WinMgr.isVisible(id) ? ' on' : ''), draggable: 'true', title: d.title },
+        el('span', { class: 'ico', text: d.icon }),
+        el('span', { class: 'lbl', text: d.title }),
+        el('span', { class: 'dot' })
+      );
+      item.addEventListener('click', () => WinMgr.toggle(id));
+      item.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('text/plain', id);
+        e.dataTransfer.effectAllowed = 'move';
+        item.classList.add('dragging');
+      });
+      item.addEventListener('dragend', () => item.classList.remove('dragging'));
+      item.addEventListener('dragover', e => {
+        e.preventDefault();
+        const r = item.getBoundingClientRect();
+        const before = e.clientY < r.top + r.height / 2;
+        item.classList.toggle('drop-before', before);
+        item.classList.toggle('drop-after', !before);
+      });
+      item.addEventListener('dragleave', () => item.classList.remove('drop-before', 'drop-after'));
+      item.addEventListener('drop', e => {
+        e.preventDefault();
+        item.classList.remove('drop-before', 'drop-after');
+        const srcId = e.dataTransfer.getData('text/plain');
+        if (!srcId || srcId === id) return;
+        const r = item.getBoundingClientRect();
+        const before = e.clientY < r.top + r.height / 2;
+        const ord = order().filter(x => x !== srcId);
+        let idx = ord.indexOf(id);
+        if (idx === -1) return;
+        if (!before) idx++;
+        ord.splice(idx, 0, srcId);
+        Store.prefs.sidebar.order = ord;
+        Store.savePrefs();
+        render();
+      });
+      list.append(item);
+    });
+  }
+
+  function currentWidth() {
+    if (Store.prefs.sidebar.collapsed) return SB_MIN;
+    return clamp(Store.prefs.sidebar.width || 260, SB_MIN, SB_MAX);
+  }
+  function expandedWidth() {
+    return clamp(Store.prefs.sidebar.expanded || Store.prefs.sidebar.width || 260, SB_RAIL, SB_MAX);
+  }
+  function isRail() { return currentWidth() < SB_RAIL; }
+
+  function clearPeek() {
+    clearTimeout(peekTimer); clearTimeout(retractTimer);
+    peekTimer = 0; retractTimer = 0;
+    if (peeking) {
+      peeking = false;
+      sb.classList.remove('peek');
+      sb.style.marginRight = '';
+      sb.style.width = currentWidth() + 'px';
+      sb.classList.toggle('rail', isRail());
+    }
+  }
+  function startPeek() {
+    if (peeking || !isRail() || sb.classList.contains('resizing')) return;
+    peeking = true;
+    const rw = currentWidth(), ew = expandedWidth();
+    sb.classList.add('peek');
+    sb.classList.remove('rail');
+    sb.style.width = ew + 'px';
+    sb.style.marginRight = -(ew - rw) + 'px';
+  }
+  function schedulePeek() {
+    clearTimeout(retractTimer); retractTimer = 0;
+    if (peeking || !isRail()) return;
+    clearTimeout(peekTimer);
+    peekTimer = setTimeout(startPeek, 150);
+  }
+  function scheduleRetract() {
+    clearTimeout(peekTimer); peekTimer = 0;
+    if (!peeking) return;
+    clearTimeout(retractTimer);
+    retractTimer = setTimeout(clearPeek, 300);
+  }
+
+  function applyWidth() {
+    clearPeek();
+    sb.style.width = currentWidth() + 'px';
+    sb.classList.toggle('rail', isRail());
+  }
+  function applyCollapsed() {
+    const c = !!Store.prefs.sidebar.collapsed;
+    sb.classList.toggle('collapsed', c);
+    applyWidth();
+    const r = isRail();
+    toggle.textContent = r ? '\u25b6' : '\u25c0';
+    toggle.title = r ? 'Expand sidebar' : 'Collapse sidebar';
+  }
+
+  function initResize() {
+    rz.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      clearPeek();
+      sb.classList.add('resizing');
+      rz.setPointerCapture(e.pointerId);
+      const move = ev => {
+        const w = clamp(Math.round(ev.clientX - sb.getBoundingClientRect().left), SB_MIN, SB_MAX);
+        Store.prefs.sidebar.collapsed = false;
+        Store.prefs.sidebar.width = w;
+        sb.classList.remove('collapsed');
+        sb.style.width = w + 'px';
+        sb.classList.toggle('rail', w < SB_RAIL);
+        toggle.textContent = (w < SB_RAIL) ? '\u25b6' : '\u25c0';
+        toggle.title = (w < SB_RAIL) ? 'Expand sidebar' : 'Collapse sidebar';
+      };
+      const up = () => {
+        rz.removeEventListener('pointermove', move);
+        rz.removeEventListener('pointerup', up);
+        rz.removeEventListener('pointercancel', up);
+        sb.classList.remove('resizing');
+        if (Store.prefs.sidebar.width >= SB_RAIL) Store.prefs.sidebar.expanded = Store.prefs.sidebar.width;
+        Store.savePrefs();
+        applyCollapsed();
+      };
+      rz.addEventListener('pointermove', move);
+      rz.addEventListener('pointerup', up);
+      rz.addEventListener('pointercancel', up);
+    });
+  }
+
+  function renderFoot() {
+    const d = Store.dream;
+    $('#sb-dream').textContent = d ? (d.name || '(unnamed)') : 'No dream open';
+  }
+  function status(s) { $('#sb-status').textContent = s; }
+
+  function boot(ds) {
+    defs = ds;
+    applyCollapsed();
+    render();
+    renderFoot();
+    status('Storage ready');
+    toggle.addEventListener('click', () => {
+      if (Store.prefs.sidebar.collapsed || isRail()) {
+        Store.prefs.sidebar.collapsed = false;
+        Store.prefs.sidebar.width = expandedWidth();
+      } else {
+        Store.prefs.sidebar.collapsed = true;
+      }
+      Store.savePrefs();
+      applyCollapsed();
+    });
+    initResize();
+    sb.addEventListener('mouseenter', schedulePeek);
+    sb.addEventListener('mouseleave', scheduleRetract);
+    sb.addEventListener('focusin', schedulePeek);
+    sb.addEventListener('focusout', e => { if (!sb.contains(e.relatedTarget)) scheduleRetract(); });
+    $('#sb-fit').addEventListener('click', () => Canvas.fitAll(WinMgr.visibleRects()));
+    $('#sb-zin').addEventListener('click', () => Canvas.zoomStep(1));
+    $('#sb-zout').addEventListener('click', () => Canvas.zoomStep(-1));
+    $('#sb-zlvl').addEventListener('click', () => Canvas.setZoom(1));
+    Bus.on('win-vis', render);
+    Bus.on('dream-changed', renderFoot);
+    Bus.on('library-changed', renderFoot);
+    Bus.on('saving', () => status('Saving\u2026'));
+    Bus.on('saved', () => status('Saved ' + new Date().toLocaleTimeString()));
+  }
+  return { boot };
+})();
+
+/* ================= boot ================= */
+(async () => {
+  try {
+    await Store.init();
+  } catch (e) {
+    console.error(e);
+    Toast('Storage failed to open', 'err');
+  }
+  WinMgr.boot(WINDOWS);
+  Sidebar.boot(WINDOWS);
+  if (!Store.prefs.pan) Canvas.centerOn(OX + 660, OY + 290);
+  Bus.emit('dream-changed');
+  Bus.emit('library-changed');
+  Bus.emit('runs-changed');
+  Log.add('Fable rebuild v1 ready', 'ok');
+})();
+</script>
+</body>
+</html>
